@@ -13,6 +13,19 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      # Org-level env (preferred). Set these as Organization secrets.
+      KINSTA_HOST: ${{ secrets.KINSTA_HOST }}
+      KINSTA_USER: ${{ secrets.KINSTA_USER }}
+      KINSTA_PORT: ${{ secrets.KINSTA_PORT }}
+      KINSTA_SSH_KEY: ${{ secrets.KINSTA_SSH_KEY }}
+      # Provide either KINSTA_FUNNEL_STG_PATH or fall back to KINSTA_PLUGINS_BASE if you reuse the same root:
+      KINSTA_FUNNEL_STG_PATH: ${{ secrets.KINSTA_FUNNEL_STG_PATH }}
+      KINSTA_PLUGINS_BASE: ${{ secrets.KINSTA_PLUGINS_BASE }}
+      # App envs (can also be org secrets)
+      VITE_APP_ORIGIN: ${{ secrets.STAGING_APP_ORIGIN }}
+      VITE_WP_BASE: ${{ secrets.STAGING_WP_BASE }}
+      VITE_FUNNEL_API_BASE: ${{ secrets.STAGING_FUNNEL_API_BASE }}
 
     steps:
       - name: Checkout
@@ -29,29 +42,26 @@ jobs:
 
       - name: Build (staging)
         run: npm run build
-        env:
-          # Provide these in repo Secrets to override defaults in src/config.ts
-          VITE_APP_ORIGIN: ${{ secrets.STAGING_APP_ORIGIN }}
-          VITE_WP_BASE: ${{ secrets.STAGING_WP_BASE }}
-          VITE_FUNNEL_API_BASE: ${{ secrets.STAGING_FUNNEL_API_BASE }}
 
       - name: Add SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.KINSTA_SSH_PRIVATE_KEY }}
+          ssh-private-key: ${{ env.KINSTA_SSH_KEY }}
 
       - name: Add known hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -p "${{ secrets.KINSTA_SSH_PORT || 22 }}" "${{ secrets.KINSTA_SSH_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "${KINSTA_PORT:-22}" "${KINSTA_HOST}" >> ~/.ssh/known_hosts
 
       - name: Create remote dir (idempotent)
         run: |
-          ssh -p "${{ secrets.KINSTA_SSH_PORT || 22 }}" "${{ secrets.KINSTA_SSH_USER }}@${{ secrets.KINSTA_SSH_HOST }}" "mkdir -p '${{ secrets.KINSTA_STAGING_PATH }}'"
+          REMOTE_PATH="${KINSTA_FUNNEL_STG_PATH:-$KINSTA_PLUGINS_BASE}"
+          ssh -p "${KINSTA_PORT:-22}" "${KINSTA_USER}@${KINSTA_HOST}" "mkdir -p '${REMOTE_PATH}'"
 
       - name: Rsync dist/ to Kinsta staging
         run: |
-          rsync -avz --delete -e "ssh -p ${{ secrets.KINSTA_SSH_PORT || 22 }}" \
-            dist/ "${{ secrets.KINSTA_SSH_USER }}@${{ secrets.KINSTA_SSH_HOST }}:${{ secrets.KINSTA_STAGING_PATH }}"
+          REMOTE_PATH="${KINSTA_FUNNEL_STG_PATH:-$KINSTA_PLUGINS_BASE}"
+          rsync -avz --delete -e "ssh -p ${KINSTA_PORT:-22}" \
+            dist/ "${KINSTA_USER}@${KINSTA_HOST}:${REMOTE_PATH}"
 
 
