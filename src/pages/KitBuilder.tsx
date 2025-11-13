@@ -1,13 +1,16 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { basicKitProducts, enhancementProducts, calculateKitPrice } from "@/data/products";
+import { saveKitSelection } from "@/data/wooMap";
 
 export default function KitBuilder() {
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [twoPerson, setTwoPerson] = useState(false);
+  const navigate = useNavigate();
 
   const toggleExtra = (extra: string) => {
     setSelectedExtras((prev) =>
@@ -124,7 +127,14 @@ export default function KitBuilder() {
           <p className="text-4xl font-bold text-primary">${totalPrice.toFixed(2)}</p>
         </div>
         <div className="text-center">
-          <Button size="lg" className="px-12 text-lg">
+          <Button
+            size="lg"
+            className="px-12 text-lg"
+            onClick={() => {
+              saveKitSelection({ extras: selectedExtras, twoPerson });
+              navigate("/checkout");
+            }}
+          >
             Continue to Checkout
           </Button>
         </div>
