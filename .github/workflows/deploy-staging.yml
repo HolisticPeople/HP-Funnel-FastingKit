@@ -1,0 +1,57 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (staging)
+        run: npm run build
+        env:
+          # Provide these in repo Secrets to override defaults in src/config.ts
+          VITE_APP_ORIGIN: ${{ secrets.STAGING_APP_ORIGIN }}
+          VITE_WP_BASE: ${{ secrets.STAGING_WP_BASE }}
+          VITE_FUNNEL_API_BASE: ${{ secrets.STAGING_FUNNEL_API_BASE }}
+
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.KINSTA_SSH_PRIVATE_KEY }}
+
+      - name: Add known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${{ secrets.KINSTA_SSH_PORT || 22 }}" "${{ secrets.KINSTA_SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Create remote dir (idempotent)
+        run: |
+          ssh -p "${{ secrets.KINSTA_SSH_PORT || 22 }}" "${{ secrets.KINSTA_SSH_USER }}@${{ secrets.KINSTA_SSH_HOST }}" "mkdir -p '${{ secrets.KINSTA_STAGING_PATH }}'"
+
+      - name: Rsync dist/ to Kinsta staging
+        run: |
+          rsync -avz --delete -e "ssh -p ${{ secrets.KINSTA_SSH_PORT || 22 }}" \
+            dist/ "${{ secrets.KINSTA_SSH_USER }}@${{ secrets.KINSTA_SSH_HOST }}:${{ secrets.KINSTA_STAGING_PATH }}"
+
+
