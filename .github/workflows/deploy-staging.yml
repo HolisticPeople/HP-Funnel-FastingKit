@@ -53,15 +53,28 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -p "${KINSTA_PORT:-22}" "${KINSTA_HOST}" >> ~/.ssh/known_hosts
 
-      - name: Create remote dir (idempotent)
+      - name: Create remote dir (idempotent) and guard
         run: |
+          if [ -z "${KINSTA_FUNNEL_STG_PATH}" ] && [ -z "${KINSTA_PLUGINS_BASE}" ]; then
+            echo "KINSTA_FUNNEL_STG_PATH is not set. Refusing to deploy."; exit 1;
+          fi
           REMOTE_PATH="${KINSTA_FUNNEL_STG_PATH:-$KINSTA_PLUGINS_BASE}"
+          echo "Deploying funnel to: ${REMOTE_PATH}"
+          case "$REMOTE_PATH" in
+            */wp-content/plugins|*/wp-content/plugins/) echo "Refusing to deploy to plugins directory"; exit 1;;
+          esac
           ssh -p "${KINSTA_PORT:-22}" "${KINSTA_USER}@${KINSTA_HOST}" "mkdir -p '${REMOTE_PATH}'"
 
       - name: Rsync dist/ to Kinsta staging
         run: |
+          if [ -z "${KINSTA_FUNNEL_STG_PATH}" ] && [ -z "${KINSTA_PLUGINS_BASE}" ]; then
+            echo "KINSTA_FUNNEL_STG_PATH is not set. Refusing to deploy."; exit 1;
+          fi
           REMOTE_PATH="${KINSTA_FUNNEL_STG_PATH:-$KINSTA_PLUGINS_BASE}"
+          case "$REMOTE_PATH" in
+            */wp-content/plugins|*/wp-content/plugins/) echo "Refusing to deploy to plugins directory"; exit 1;;
+          esac
           rsync -avz --delete -e "ssh -p ${KINSTA_PORT:-22}" \
-            dist/ "${KINSTA_USER}@${KINSTA_HOST}:${REMOTE_PATH}"
+            dist/ "${KINSTA_USER}@${KINSTA_HOST}:${REMOTE_PATH}/"
 
 
