@@ -9,8 +9,9 @@
     <style>html{visibility:hidden}</style>
     <script>
       (function(){
-        var api = "%VITE_FUNNEL_API_BASE%" || "";
-        var wp  = "%VITE_WP_BASE%" || "";
+        // Derive API base from current origin to avoid env placeholder issues
+        var api = (window.location.origin || "") + "/wp-json/hp-funnel/v1";
+        var wp  = window.location.origin || "";
         var fid = (typeof window !== "undefined" && window.HP_FUNNEL_ID) ? window.HP_FUNNEL_ID : "fastingkit";
         try{
           if(api && wp){
