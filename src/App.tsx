@@ -15,7 +15,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter basename={(import.meta as any).env?.VITE_APP_BASEPATH || "/"}>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/kit-builder" element={<KitBuilder />} />

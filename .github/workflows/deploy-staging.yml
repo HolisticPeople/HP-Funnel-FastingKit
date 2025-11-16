@@ -26,6 +26,7 @@ jobs:
       VITE_APP_ORIGIN: ${{ secrets.STAGING_APP_ORIGIN }}
       VITE_WP_BASE: ${{ secrets.STAGING_WP_BASE }}
       VITE_FUNNEL_API_BASE: ${{ secrets.STAGING_FUNNEL_API_BASE }}
+      VITE_APP_BASEPATH: ${{ secrets.STAGING_APP_BASE_PATH }}
 
     steps:
       - name: Checkout
