@@ -21,6 +21,24 @@ export type BridgeItem = {
   qty: number;
 };
 
+function parsePossiblyPrefixedJson<T>(raw: string): T {
+  // Some environments echo PHP warnings before valid JSON. Try to recover.
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    if (start !== -1 && end > start) {
+      try {
+        return JSON.parse(raw.slice(start, end + 1)) as T;
+      } catch {
+        // fallthrough
+      }
+    }
+    throw new Error("Invalid JSON response");
+  }
+}
+
 async function post<T>(path: string, body: any): Promise<T> {
   const res = await fetch(`${FUNNEL_API_BASE}${path}`, {
     method: "POST",
@@ -35,7 +53,25 @@ async function post<T>(path: string, body: any): Promise<T> {
     const err = await res.text().catch(() => "");
     throw new Error(`Bridge ${path} failed: ${res.status} ${err}`);
   }
-  return res.json() as Promise<T>;
+  const txt = await res.text();
+  return parsePossiblyPrefixedJson<T>(txt);
+}
+
+async function get<T>(pathWithQuery: string): Promise<T> {
+  const res = await fetch(`${FUNNEL_API_BASE}${pathWithQuery}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Origin: APP_ORIGIN,
+    },
+    credentials: "omit",
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    throw new Error(`Bridge ${pathWithQuery} failed: ${res.status} ${err}`);
+  }
+  const txt = await res.text();
+  return parsePossiblyPrefixedJson<T>(txt);
 }
 
 export async function lookupCustomer(email: string): Promise<{
@@ -101,6 +137,16 @@ export function buildHostedConfirmUrl(clientSecret: string): string {
   u.searchParams.set("hp_fb_confirm", "1");
   u.searchParams.set("cs", clientSecret);
   return u.toString();
+}
+
+export async function getStatus(params: {
+  funnel_id: string;
+}): Promise<{ ok: boolean; environment: string; mode: string; redirect_url?: string }> {
+  const url = new URL(`${FUNNEL_API_BASE}/status`);
+  if (params.funnel_id) {
+    url.searchParams.set("funnel_id", params.funnel_id);
+  }
+  return get(`${url.pathname}${url.search}`);
 }
 
 

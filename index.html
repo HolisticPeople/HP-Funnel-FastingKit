@@ -6,6 +6,36 @@
     <title>lovable-woo-boost</title>
     <meta name="description" content="Lovable Generated Project" />
     <meta name="author" content="Lovable" />
+    <style>html{visibility:hidden}</style>
+    <script>
+      (function(){
+        // Derive API base from current origin to avoid env placeholder issues
+        var api = (window.location.origin || "") + "/wp-json/hp-funnel/v1";
+        var wp  = window.location.origin || "";
+        var fid = (typeof window !== "undefined" && window.HP_FUNNEL_ID) ? window.HP_FUNNEL_ID : "fastingkit";
+        try{
+          if(api && wp){
+            var u = api.replace(/\/$/, "") + "/status?funnel_id=" + encodeURIComponent(fid) + "&_=" + Date.now();
+            // Synchronous XHR to gate render before app loads
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", u, false);
+            xhr.setRequestHeader("Accept","application/json");
+            try { xhr.send(null); } catch(e) {}
+            var txt = xhr.responseText || "";
+            var s = txt.indexOf("{"), e = txt.lastIndexOf("}");
+            if (s !== -1 && e > s) {
+              var data = JSON.parse(txt.slice(s, e+1));
+              if (data && data.mode === "off" && data.redirect_url) {
+                window.location.replace(data.redirect_url);
+                return;
+              }
+            }
+          }
+        }catch(_err){}
+        // allow render
+        document.documentElement.style.visibility="visible";
+      })();
+    </script>
 
     <meta property="og:title" content="lovable-woo-boost" />
     <meta property="og:description" content="Lovable Generated Project" />
