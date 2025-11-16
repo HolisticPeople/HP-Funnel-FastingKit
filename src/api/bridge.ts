@@ -38,6 +38,22 @@ async function post<T>(path: string, body: any): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function get<T>(pathWithQuery: string): Promise<T> {
+  const res = await fetch(`${FUNNEL_API_BASE}${pathWithQuery}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Origin: APP_ORIGIN,
+    },
+    credentials: "omit",
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    throw new Error(`Bridge ${pathWithQuery} failed: ${res.status} ${err}`);
+  }
+  return (await res.json()) as T;
+}
+
 export async function lookupCustomer(email: string): Promise<{
   user_id: number;
   default_billing: BridgeAddress;
@@ -101,6 +117,16 @@ export function buildHostedConfirmUrl(clientSecret: string): string {
   u.searchParams.set("hp_fb_confirm", "1");
   u.searchParams.set("cs", clientSecret);
   return u.toString();
+}
+
+export async function getStatus(params: {
+  funnel_id: string;
+}): Promise<{ ok: boolean; environment: string; mode: string; redirect_url?: string }> {
+  const url = new URL(`${FUNNEL_API_BASE}/status`);
+  if (params.funnel_id) {
+    url.searchParams.set("funnel_id", params.funnel_id);
+  }
+  return get(`${url.pathname}${url.search}`);
 }
 
 
