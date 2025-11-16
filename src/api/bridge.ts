@@ -21,6 +21,24 @@ export type BridgeItem = {
   qty: number;
 };
 
+function parsePossiblyPrefixedJson<T>(raw: string): T {
+  // Some environments echo PHP warnings before valid JSON. Try to recover.
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    if (start !== -1 && end > start) {
+      try {
+        return JSON.parse(raw.slice(start, end + 1)) as T;
+      } catch {
+        // fallthrough
+      }
+    }
+    throw new Error("Invalid JSON response");
+  }
+}
+
 async function post<T>(path: string, body: any): Promise<T> {
   const res = await fetch(`${FUNNEL_API_BASE}${path}`, {
     method: "POST",
@@ -35,7 +53,8 @@ async function post<T>(path: string, body: any): Promise<T> {
     const err = await res.text().catch(() => "");
     throw new Error(`Bridge ${path} failed: ${res.status} ${err}`);
   }
-  return res.json() as Promise<T>;
+  const txt = await res.text();
+  return parsePossiblyPrefixedJson<T>(txt);
 }
 
 async function get<T>(pathWithQuery: string): Promise<T> {
@@ -51,7 +70,8 @@ async function get<T>(pathWithQuery: string): Promise<T> {
     const err = await res.text().catch(() => "");
     throw new Error(`Bridge ${pathWithQuery} failed: ${res.status} ${err}`);
   }
-  return (await res.json()) as T;
+  const txt = await res.text();
+  return parsePossiblyPrefixedJson<T>(txt);
 }
 
 export async function lookupCustomer(email: string): Promise<{
