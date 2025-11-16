@@ -19,14 +19,16 @@ jobs:
       KINSTA_USER: ${{ secrets.KINSTA_USER }}
       KINSTA_PORT: ${{ secrets.KINSTA_PORT }}
       KINSTA_SSH_KEY: ${{ secrets.KINSTA_SSH_KEY }}
-      # Provide either KINSTA_FUNNEL_STG_PATH or fall back to KINSTA_PLUGINS_BASE if you reuse the same root:
+      # Provide either KINSTA_FUNNEL_STG_PATH (full path) or KINSTA_FUNNEL_ROOT + FUNNEL_SLUG
       KINSTA_FUNNEL_STG_PATH: ${{ secrets.KINSTA_FUNNEL_STG_PATH }}
-      KINSTA_PLUGINS_BASE: ${{ secrets.KINSTA_PLUGINS_BASE }}
+      KINSTA_FUNNEL_ROOT: ${{ secrets.KINSTA_FUNNEL_ROOT }}
       # App envs (can also be org secrets)
       VITE_APP_ORIGIN: ${{ secrets.STAGING_APP_ORIGIN }}
       VITE_WP_BASE: ${{ secrets.STAGING_WP_BASE }}
       VITE_FUNNEL_API_BASE: ${{ secrets.STAGING_FUNNEL_API_BASE }}
-      VITE_APP_BASEPATH: ${{ secrets.STAGING_APP_BASE_PATH }}
+      # Repo secrets common to both envs
+      FUNNEL_SLUG: ${{ secrets.FUNNEL_SLUG }}
+      VITE_APP_BASEPATH: ${{ secrets.APP_BASE_PATH }}
 
     steps:
       - name: Checkout
@@ -54,27 +56,26 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -p "${KINSTA_PORT:-22}" "${KINSTA_HOST}" >> ~/.ssh/known_hosts
 
-      - name: Create remote dir (idempotent) and guard
+      - name: Resolve deploy path and guard
         run: |
-          if [ -z "${KINSTA_FUNNEL_STG_PATH}" ] && [ -z "${KINSTA_PLUGINS_BASE}" ]; then
-            echo "KINSTA_FUNNEL_STG_PATH is not set. Refusing to deploy."; exit 1;
+          # Compute REMOTE_PATH
+          if [ -n "${KINSTA_FUNNEL_STG_PATH}" ]; then
+            REMOTE_PATH="${KINSTA_FUNNEL_STG_PATH}"
+          elif [ -n "${KINSTA_FUNNEL_ROOT}" ] && [ -n "${FUNNEL_SLUG}" ]; then
+            REMOTE_PATH="${KINSTA_FUNNEL_ROOT%/}/${FUNNEL_SLUG}"
+          else
+            echo "Missing deploy path: set either KINSTA_FUNNEL_STG_PATH or KINSTA_FUNNEL_ROOT + FUNNEL_SLUG"; exit 1
           fi
-          REMOTE_PATH="${KINSTA_FUNNEL_STG_PATH:-$KINSTA_PLUGINS_BASE}"
           echo "Deploying funnel to: ${REMOTE_PATH}"
           case "$REMOTE_PATH" in
-            */wp-content/plugins|*/wp-content/plugins/) echo "Refusing to deploy to plugins directory"; exit 1;;
+            */wp-content/plugins|*/wp-content/plugins/) echo "Refusing to deploy to plugins directory"; exit 1 ;;
           esac
+          echo "REMOTE_PATH=$REMOTE_PATH" >> $GITHUB_ENV
+          # Ensure remote dir exists
           ssh -p "${KINSTA_PORT:-22}" "${KINSTA_USER}@${KINSTA_HOST}" "mkdir -p '${REMOTE_PATH}'"
 
       - name: Rsync dist/ to Kinsta staging
         run: |
-          if [ -z "${KINSTA_FUNNEL_STG_PATH}" ] && [ -z "${KINSTA_PLUGINS_BASE}" ]; then
-            echo "KINSTA_FUNNEL_STG_PATH is not set. Refusing to deploy."; exit 1;
-          fi
-          REMOTE_PATH="${KINSTA_FUNNEL_STG_PATH:-$KINSTA_PLUGINS_BASE}"
-          case "$REMOTE_PATH" in
-            */wp-content/plugins|*/wp-content/plugins/) echo "Refusing to deploy to plugins directory"; exit 1;;
-          esac
           rsync -avz --delete -e "ssh -p ${KINSTA_PORT:-22}" \
             dist/ "${KINSTA_USER}@${KINSTA_HOST}:${REMOTE_PATH}/"
 
