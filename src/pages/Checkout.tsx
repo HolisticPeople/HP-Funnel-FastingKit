@@ -226,10 +226,11 @@ export default function Checkout() {
         selected_rate: useRate,
         points_to_redeem: pointsToRedeem,
       });
+      // Build success URL robustly whether APP_ORIGIN already includes the base path or not
       const appOrigin = ((import.meta as any).env?.VITE_APP_ORIGIN || window.location.origin).toString();
       const base = ((import.meta as any).env?.VITE_APP_BASEPATH || "/").toString();
-      const normalizedBase = base.endsWith("/") ? base : `${base}/`;
-      const succ = `${appOrigin.replace(/\/$/,"")}${normalizedBase}upsell`;
+      const baseUrl = new URL(base.startsWith("/") ? base : `/${base}`, appOrigin); // resolves correctly in both cases
+      const succ = new URL("upsell", baseUrl).toString();
       const url = buildHostedConfirmUrl(res.client_secret, res.publishable, succ);
       window.location.href = url;
     } catch (e: any) {
