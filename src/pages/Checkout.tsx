@@ -225,7 +225,7 @@ export default function Checkout() {
         selected_rate: useRate,
         points_to_redeem: pointsToRedeem,
       });
-      const url = buildHostedConfirmUrl(res.client_secret);
+      const url = buildHostedConfirmUrl(res.client_secret, res.publishable);
       window.location.href = url;
     } catch (e: any) {
       toast({ title: "Payment init failed", description: e.message, variant: "destructive" });

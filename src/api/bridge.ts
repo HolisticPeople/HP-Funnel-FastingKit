@@ -129,13 +129,17 @@ export async function createIntent(params: {
   return post("/checkout/intent", params);
 }
 
-export function buildHostedConfirmUrl(clientSecret: string): string {
+export function buildHostedConfirmUrl(clientSecret: string, publishable?: string): string {
   const base = WP_BASE.replace(/\/$/, "");
   // Use query-param endpoint to avoid rewrite-rule dependency:
   // https://site/?hp_fb_confirm=1&cs=CLIENT_SECRET
   const u = new URL(`${base}/`);
   u.searchParams.set("hp_fb_confirm", "1");
   u.searchParams.set("cs", clientSecret);
+  if (publishable) {
+    // pass publishable so hosted page can choose the right Stripe environment
+    u.searchParams.set("pk", publishable);
+  }
   return u.toString();
 }
 
