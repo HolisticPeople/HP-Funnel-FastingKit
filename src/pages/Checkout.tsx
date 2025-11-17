@@ -6,6 +6,11 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/components/ui/use-toast";
 import { Slider } from "@/components/ui/slider";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { COUNTRIES, countryCodeSet, countryNameFor } from "@/data/countries";
 import { WOO_IDS, KIT_BASE, ENHANCEMENTS, loadKitSelection } from "@/data/wooMap";
 import {
   lookupCustomer,
@@ -20,6 +25,10 @@ export default function Checkout() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState<BridgeAddress>({ country: "US" });
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [countryError, setCountryError] = useState<string | null>(null);
+  const [postcodeError, setPostcodeError] = useState<string | null>(null);
+  const [cityError, setCityError] = useState<string | null>(null);
+  const [addr1Error, setAddr1Error] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingLookup, setLoadingLookup] = useState(false);
   const [loadingRates, setLoadingRates] = useState(false);
@@ -31,6 +40,8 @@ export default function Checkout() {
   const [pointsAvailable, setPointsAvailable] = useState<number>(0);
   const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
   const [recalcPending, setRecalcPending] = useState(false);
+  const [ratesSig, setRatesSig] = useState<string | null>(null);
+  const [ratesError, setRatesError] = useState<string | null>(null);
   const calcSeqRef = useRef(0);
   const allowedMax = useMemo(() => {
     const subtotal = Number(totals?.subtotal || 0);
@@ -38,7 +49,7 @@ export default function Checkout() {
     const netProducts = Math.max(0, subtotal - discount);
     const bySubtotal = Math.max(0, Math.floor(netProducts * 10)); // 10 pts == $1
     return Math.max(0, Math.min(pointsAvailable, bySubtotal));
-  }, [pointsAvailable, totals?.subtotal]);
+  }, [pointsAvailable, totals?.subtotal, totals?.discount_total]);
 
   // Helper to quickly derive a new grand total without waiting for server
   const deriveGrand = (base: any, nextShipping?: number, nextPointsDiscount?: number) => {
@@ -49,6 +60,15 @@ export default function Checkout() {
     const g = subtotal + shipping - pts;
     return Math.max(0, Number.isFinite(g) ? g : 0);
   };
+
+  const signatureForAddress = (a: BridgeAddress) => {
+    const c = String(a.country || "").trim().toUpperCase();
+    const p = String(a.postcode || "").trim().toUpperCase();
+    return `${c}|${p}`;
+  };
+  const currentRatesSig = useMemo(() => signatureForAddress(address), [address.country, address.postcode]);
+  const ratesFetched = useMemo(() => ratesSig !== null, [ratesSig]);
+  const ratesStale = useMemo(() => ratesFetched && ratesSig !== currentRatesSig, [ratesFetched, ratesSig, currentRatesSig]);
 
   const items = useMemo(() => {
     const sel = loadKitSelection();
@@ -89,6 +109,11 @@ export default function Checkout() {
         phone: ship?.phone || res?.default_billing?.phone || address.phone,
       };
       setAddress(addr);
+      setCountryError(null);
+      setPostcodeError(null);
+      setCityError(null);
+      setAddr1Error(null);
+      setPhoneError(null);
       setPointsAvailable(Number(res.points_balance || 0));
       // Auto-fetch shipping rates immediately on successful lookup
       await loadRates(addr);
@@ -99,7 +124,25 @@ export default function Checkout() {
     }
   };
 
-  const loadRates = async (addrOverride?: BridgeAddress) => {
+  const validateRequired = (addrOverride?: BridgeAddress): boolean => {
+    let ok = true;
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) { setEmailError("Valid email is required"); ok = false; } else { setEmailError(null); }
+    const addrRef = addrOverride ?? address;
+    if (!addrRef.country || !countryCodeSet.has(String(addrRef.country).toUpperCase())) {
+      setCountryError("Select a valid country");
+      ok = false;
+    } else {
+      setCountryError(null);
+    }
+    if (!addrRef.postcode) { setPostcodeError("Postcode is required"); ok = false; } else { setPostcodeError(null); }
+    if (!addrRef.city) { setCityError("City is required"); ok = false; } else { setCityError(null); }
+    if (!addrRef.address_1) { setAddr1Error("Address is required"); ok = false; } else { setAddr1Error(null); }
+    if (!addrRef.phone) { setPhoneError("Phone number is required"); ok = false; } else { setPhoneError(null); }
+    return ok;
+  };
+
+  const loadRates = async (addrOverride?: BridgeAddress): Promise<{ serviceName: string; amount: number } | undefined> => {
+    if (!validateRequired(addrOverride || address)) { return; }
     try {
       setLoadingRates(true);
       const payload = {
@@ -110,6 +153,8 @@ export default function Checkout() {
       const res = await getRates(payload);
       const list = res.rates || [];
       setRates(list);
+      setRatesSig(signatureForAddress(addrOverride || address));
+      setRatesError(null);
       // Pre-select the cheapest rate and compute totals automatically
       if (list.length > 0) {
         const cheapest = [...list].sort((a, b) => {
@@ -142,52 +187,34 @@ export default function Checkout() {
             setRecalcPending(false);
           }
         }).catch(() => setRecalcPending(false));
+        return selected;
       } else {
         setSelectedRate(undefined);
         setRateValue(undefined);
       }
     } catch (e: any) {
-      toast({ title: "Rates failed", description: e.message, variant: "destructive" });
+      const friendly = "We couldn't find shipping options for this address. Please verify your country and postcode and try again.";
+      setRates([]);
+      setSelectedRate(undefined);
+      setRateValue(undefined);
+      setRatesError(friendly);
     } finally {
       setLoadingRates(false);
     }
   };
 
-  const loadTotals = async () => {
-    try {
-      setRecalcPending(true);
-      calcSeqRef.current += 1;
-      const seq = calcSeqRef.current;
-      const res = await getTotals({
-        funnel_id: "fastingkit",
-        items,
-        address,
-        coupon_codes: [],
-        selected_rate: selectedRate,
-        customer_email: email,
-        points_to_redeem: pointsToRedeem,
-      });
-      if (seq === calcSeqRef.current) {
-        const fixed = { ...res, grand_total: deriveGrand(res) };
-        setTotals(fixed);
-        setRecalcPending(false);
-      }
-    } catch (e: any) {
-      toast({ title: "Totals failed", description: e.message, variant: "destructive" });
-    } finally {
-      // recalcPending cleared in success branch; keep UI from flickering
-    }
-  };
+  // Removed manual Refresh Totals button; totals revalidate automatically
 
   const pay = async () => {
-    if (!email) { toast({ title: "Enter email", variant: "destructive" }); return; }
-    if (!address.phone || String(address.phone).trim() === "") {
-      setPhoneError("Phone number is required for shipping");
-      toast({ title: "Enter phone number", description: "Please add your shipping phone number.", variant: "destructive" });
-      return;
-    }
+    if (!validateRequired(address)) { return; }
     try {
       setLoading(true);
+      let useRate = selectedRate;
+      if (!useRate || ratesStale) {
+        const sel = await loadRates();
+        if (!sel) { setLoading(false); return; }
+        useRate = sel;
+      }
       const res = await createIntent({
         funnel_id: "fastingkit",
         funnel_name: "Fasting Kit",
@@ -195,7 +222,7 @@ export default function Checkout() {
         shipping_address: address,
         items,
         coupon_codes: [],
-        selected_rate: selectedRate,
+        selected_rate: useRate,
         points_to_redeem: pointsToRedeem,
       });
       const url = buildHostedConfirmUrl(res.client_secret);
@@ -223,20 +250,62 @@ export default function Checkout() {
               </div>
               {emailError && <p className="text-sm text-red-600">{emailError}</p>}
             </div>
+            {loadingLookup && (
+              <div className="md:col-span-2 text-sm text-emerald-700 flex items-center">
+                <span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                Looking up your account…
+              </div>
+            )}
             <div className="grid gap-2">
-              <Label htmlFor="country">Country</Label>
-              <Input id="country" value={address.country || ""} onChange={(e) => setAddress({ ...address, country: e.target.value })} />
+              <Label>Country</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded="false"
+                    className={cn("justify-between", countryError ? "border-red-500" : "")}
+                  >
+                    {countryNameFor(address.country) || "Select country"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[320px]">
+                  <Command>
+                    <CommandInput placeholder="Search country..." />
+                    <CommandEmpty>No country found.</CommandEmpty>
+                    <CommandGroup>
+                      {COUNTRIES.map((c) => (
+                        <CommandItem
+                          key={c.code}
+                          value={`${c.name} ${c.code}`}
+                          onSelect={() => {
+                            setAddress({ ...address, country: c.code });
+                            if (countryError) setCountryError(null);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", address.country === c.code ? "opacity-100" : "opacity-0")} />
+                          {c.name} ({c.code})
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {countryError && <p className="text-sm text-red-600">{countryError}</p>}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="postcode">Postcode</Label>
-              <Input id="postcode" value={address.postcode || ""} onChange={(e) => setAddress({ ...address, postcode: e.target.value })} />
+              <Input id="postcode" value={address.postcode || ""} onChange={(e) => { setAddress({ ...address, postcode: e.target.value }); if (postcodeError) setPostcodeError(null); }} className={postcodeError ? "border-red-500" : ""} />
+              {postcodeError && <p className="text-sm text-red-600">{postcodeError}</p>}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="city">City</Label>
-              <Input id="city" value={address.city || ""} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
+              <Input id="city" value={address.city || ""} onChange={(e) => { setAddress({ ...address, city: e.target.value }); if (cityError) setCityError(null); }} className={cityError ? "border-red-500" : ""} />
+              {cityError && <p className="text-sm text-red-600">{cityError}</p>}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="phone">Phone <span className="text-red-600">*</span></Label>
+              <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
                 value={address.phone || ""}
@@ -248,22 +317,33 @@ export default function Checkout() {
             </div>
             <div className="grid gap-2 md:col-span-2">
               <Label htmlFor="address1">Address</Label>
-              <Input id="address1" value={address.address_1 || ""} onChange={(e) => setAddress({ ...address, address_1: e.target.value })} />
+              <Input id="address1" value={address.address_1 || ""} onChange={(e) => { setAddress({ ...address, address_1: e.target.value }); if (addr1Error) setAddr1Error(null); }} className={addr1Error ? "border-red-500" : ""} />
+              {addr1Error && <p className="text-sm text-red-600">{addr1Error}</p>}
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => loadRates()} disabled={loadingRates} className={loadingRates ? "animate-pulse" : ""}>
-              {loadingRates ? (<><span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />Getting rates…</>) : "Get Shipping Rates"}
-            </Button>
-            <Button onClick={loadTotals} disabled={(!selectedRate && rates.length > 0) || loading}>
-              Refresh Totals
-            </Button>
-          </div>
+          {/* Rates button moved to Shipping Options section */}
         </Card>
 
-        {rates.length > 0 && (
-          <Card className="p-6 grid gap-4">
+        <Card className="p-6 grid gap-4">
+          <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Shipping Options</h2>
+            <div className="flex items-center gap-3">
+              {ratesStale && <span className="text-amber-700 text-sm">Address changed — update rates</span>}
+              <Button variant="secondary" onClick={() => loadRates()} disabled={loadingRates} className={loadingRates ? "animate-pulse" : ""}>
+                {loadingRates ? (<><span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />Getting rates…</>) : (rates.length > 0 ? "Update Shipping Rates" : "Get Shipping Rates")}
+              </Button>
+            </div>
+          </div>
+          {loadingRates && (
+            <div className="text-sm text-emerald-700 flex items-center">
+              <span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+              Fetching shipping rates…
+            </div>
+          )}
+          {ratesError && (
+            <div className="text-sm text-red-600">{ratesError}</div>
+          )}
+          {rates.length > 0 && !ratesError && (
             <RadioGroup value={rateValue} onValueChange={async (v) => {
               const [serviceName, amount] = v.split("::");
               const amt = parseFloat(amount);
@@ -302,8 +382,8 @@ export default function Checkout() {
                 </div>
               ))}
             </RadioGroup>
-          </Card>
-        )}
+          )}
+        </Card>
 
         {pointsAvailable > 0 && (
           <Card className="p-6 grid gap-4">
@@ -376,7 +456,7 @@ export default function Checkout() {
         )}
 
         <div className="flex justify-end">
-          <Button size="lg" onClick={pay} disabled={loading || loadingRates || loadingLookup || recalcPending}>
+          <Button size="lg" onClick={pay} disabled={loading || loadingRates || loadingLookup || recalcPending || ratesStale || !selectedRate}>
             {totals ? `Pay $${Number(totals.grand_total || 0).toFixed(2)}` : "Pay"}
           </Button>
         </div>
