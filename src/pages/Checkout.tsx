@@ -184,31 +184,7 @@ export default function Checkout() {
     }
   };
 
-  const loadTotals = async () => {
-    try {
-      setRecalcPending(true);
-      calcSeqRef.current += 1;
-      const seq = calcSeqRef.current;
-      const res = await getTotals({
-        funnel_id: "fastingkit",
-        items,
-        address,
-        coupon_codes: [],
-        selected_rate: selectedRate,
-        customer_email: email,
-        points_to_redeem: pointsToRedeem,
-      });
-      if (seq === calcSeqRef.current) {
-        const fixed = { ...res, grand_total: deriveGrand(res) };
-        setTotals(fixed);
-        setRecalcPending(false);
-      }
-    } catch (e: any) {
-      toast({ title: "Totals failed", description: e.message, variant: "destructive" });
-    } finally {
-      // recalcPending cleared in success branch; keep UI from flickering
-    }
-  };
+  // Removed manual Refresh Totals button; totals revalidate automatically
 
   const pay = async () => {
     if (!validateRequired()) { return; }
@@ -320,25 +296,24 @@ export default function Checkout() {
               {addr1Error && <p className="text-sm text-red-600">{addr1Error}</p>}
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => loadRates()} disabled={loadingRates} className={loadingRates ? "animate-pulse" : ""}>
-              {loadingRates ? (<><span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />Getting rates…</>) : "Get Shipping Rates"}
-            </Button>
-            <Button onClick={loadTotals} disabled={(!selectedRate && rates.length > 0) || loading}>
-              Refresh Totals
-            </Button>
-          </div>
+          {/* Rates button moved to Shipping Options section */}
         </Card>
 
-        {rates.length > 0 && (
-          <Card className="p-6 grid gap-4">
-            <h2 className="text-xl font-semibold">Shipping Options</h2>
-            {loadingRates && (
-              <div className="text-sm text-emerald-700 flex items-center">
-                <span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                Fetching shipping rates…
-              </div>
-            )}
+        <Card className="p-6 grid gap-4">
+          <h2 className="text-xl font-semibold">Shipping Options</h2>
+          {loadingRates && (
+            <div className="text-sm text-emerald-700 flex items-center">
+              <span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+              Fetching shipping rates…
+            </div>
+          )}
+          {rates.length === 0 ? (
+            <div className="flex">
+              <Button variant="secondary" onClick={() => loadRates()} disabled={loadingRates} className={loadingRates ? "animate-pulse" : ""}>
+                {loadingRates ? (<><span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />Getting rates…</>) : "Get Shipping Rates"}
+              </Button>
+            </div>
+          ) : (
             <RadioGroup value={rateValue} onValueChange={async (v) => {
               const [serviceName, amount] = v.split("::");
               const amt = parseFloat(amount);
@@ -377,8 +352,8 @@ export default function Checkout() {
                 </div>
               ))}
             </RadioGroup>
-          </Card>
-        )}
+          )}
+        </Card>
 
         {pointsAvailable > 0 && (
           <Card className="p-6 grid gap-4">
