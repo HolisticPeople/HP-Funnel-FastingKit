@@ -6,6 +6,11 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/components/ui/use-toast";
 import { Slider } from "@/components/ui/slider";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { COUNTRIES, countryCodeSet, countryNameFor } from "@/data/countries";
 import { WOO_IDS, KIT_BASE, ENHANCEMENTS, loadKitSelection } from "@/data/wooMap";
 import {
   lookupCustomer,
@@ -111,7 +116,12 @@ export default function Checkout() {
   const validateRequired = (): boolean => {
     let ok = true;
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) { setEmailError("Valid email is required"); ok = false; } else { setEmailError(null); }
-    if (!address.country) { setCountryError("Country is required"); ok = false; } else { setCountryError(null); }
+    if (!address.country || !countryCodeSet.has(String(address.country).toUpperCase())) {
+      setCountryError("Select a valid country");
+      ok = false;
+    } else {
+      setCountryError(null);
+    }
     if (!address.postcode) { setPostcodeError("Postcode is required"); ok = false; } else { setPostcodeError(null); }
     if (!address.city) { setCityError("City is required"); ok = false; } else { setCityError(null); }
     if (!address.address_1) { setAddr1Error("Address is required"); ok = false; } else { setAddr1Error(null); }
@@ -246,8 +256,41 @@ export default function Checkout() {
               </div>
             )}
             <div className="grid gap-2">
-              <Label htmlFor="country">Country</Label>
-              <Input id="country" value={address.country || ""} onChange={(e) => { setAddress({ ...address, country: e.target.value }); if (countryError) setCountryError(null); }} className={countryError ? "border-red-500" : ""} />
+              <Label>Country</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded="false"
+                    className={cn("justify-between", countryError ? "border-red-500" : "")}
+                  >
+                    {countryNameFor(address.country) || "Select country"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[320px]">
+                  <Command>
+                    <CommandInput placeholder="Search country..." />
+                    <CommandEmpty>No country found.</CommandEmpty>
+                    <CommandGroup>
+                      {COUNTRIES.map((c) => (
+                        <CommandItem
+                          key={c.code}
+                          value={`${c.name} ${c.code}`}
+                          onSelect={() => {
+                            setAddress({ ...address, country: c.code });
+                            if (countryError) setCountryError(null);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", address.country === c.code ? "opacity-100" : "opacity-0")} />
+                          {c.name} ({c.code})
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               {countryError && <p className="text-sm text-red-600">{countryError}</p>}
             </div>
             <div className="grid gap-2">
