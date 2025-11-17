@@ -4,22 +4,43 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { postPurchaseProducts, calculateOffFastKitPrice } from "@/data/products";
 import { chargeUpsell } from "@/api/bridge";
+import { FUNNEL_API_BASE } from "@/config";
 
 export default function PostPurchaseUpsell() {
   const [params] = useSearchParams();
-  const orderId = Number(params.get("order_id") || 0);
+  const [orderId, setOrderId] = useState<number>(Number(params.get("order_id") || 0));
+  const piId = params.get("pi_id") || "";
   const [processing, setProcessing] = useState(false);
   const navigate = useNavigate();
 
   const totals = useMemo(() => calculateOffFastKitPrice(), []);
 
   useEffect(() => {
-    // If no order id present, send home
-    if (!orderId) {
-      // fallback – user landed here without a completed order
-      navigate("/", { replace: true });
+    // If order_id is missing but we have pi_id, try resolving on the client.
+    let stopped = false;
+    async function resolveOrder() {
+      if (orderId || !piId) return;
+      for (let i = 0; i < 30 && !stopped; i++) {
+        try {
+          const res = await fetch(`${FUNNEL_API_BASE}/orders/resolve?pi_id=${encodeURIComponent(piId)}`, {
+            headers: { Accept: "application/json" },
+          });
+          if (res.ok) {
+            const j = await res.json();
+            if (j && j.order_id) {
+              setOrderId(Number(j.order_id));
+              return;
+            }
+          }
+        } catch {}
+        await new Promise((r) => setTimeout(r, 1000));
+      }
     }
-  }, [orderId, navigate]);
+    resolveOrder();
+    return () => {
+      stopped = true;
+    };
+  }, [orderId, piId]);
 
   const accept = async () => {
     if (!orderId) return;
@@ -77,7 +98,7 @@ export default function PostPurchaseUpsell() {
         </Card>
 
         <div className="flex gap-4">
-          <Button className="flex-1" size="lg" onClick={accept} disabled={processing}>
+          <Button className="flex-1" size="lg" onClick={accept} disabled={processing || !orderId}>
             {processing ? "Processing..." : "Yes, add to my order"}
           </Button>
           <Button className="flex-1" size="lg" variant="ghost" onClick={decline} disabled={processing}>
