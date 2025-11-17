@@ -290,10 +290,10 @@ export default function Checkout() {
         {rates.length > 0 && (
           <Card className="p-6 grid gap-4">
             <h2 className="text-xl font-semibold">Shipping Options</h2>
-            {(loadingRates || recalcPending) && (
+            {loadingRates && (
               <div className="text-sm text-emerald-700 flex items-center">
                 <span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                {loadingRates ? "Fetching shipping rates…" : "Recalculating totals…"}
+                Fetching shipping rates…
               </div>
             )}
             <RadioGroup value={rateValue} onValueChange={async (v) => {
