@@ -41,6 +41,7 @@ export default function Checkout() {
   const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
   const [recalcPending, setRecalcPending] = useState(false);
   const [ratesSig, setRatesSig] = useState<string | null>(null);
+  const [ratesError, setRatesError] = useState<string | null>(null);
   const calcSeqRef = useRef(0);
   const allowedMax = useMemo(() => {
     const subtotal = Number(totals?.subtotal || 0);
@@ -66,7 +67,8 @@ export default function Checkout() {
     return `${c}|${p}`;
   };
   const currentRatesSig = useMemo(() => signatureForAddress(address), [address.country, address.postcode]);
-  const ratesStale = useMemo(() => !ratesSig || ratesSig !== currentRatesSig, [ratesSig, currentRatesSig]);
+  const ratesFetched = useMemo(() => ratesSig !== null, [ratesSig]);
+  const ratesStale = useMemo(() => ratesFetched && ratesSig !== currentRatesSig, [ratesFetched, ratesSig, currentRatesSig]);
 
   const items = useMemo(() => {
     const sel = loadKitSelection();
@@ -151,6 +153,7 @@ export default function Checkout() {
       const list = res.rates || [];
       setRates(list);
       setRatesSig(signatureForAddress(addrOverride || address));
+      setRatesError(null);
       // Pre-select the cheapest rate and compute totals automatically
       if (list.length > 0) {
         const cheapest = [...list].sort((a, b) => {
@@ -189,7 +192,12 @@ export default function Checkout() {
         setRateValue(undefined);
       }
     } catch (e: any) {
-      toast({ title: "Rates failed", description: e.message, variant: "destructive" });
+      const friendly = "We couldn't find shipping options for this address. Please verify your country and postcode and try again.";
+      setRates([]);
+      setSelectedRate(undefined);
+      setRateValue(undefined);
+      setRatesError(friendly);
+      toast({ title: "Unable to fetch shipping rates", description: friendly, variant: "destructive" });
     } finally {
       setLoadingRates(false);
     }
@@ -334,7 +342,10 @@ export default function Checkout() {
               Fetching shipping rates…
             </div>
           )}
-          {rates.length > 0 && (
+          {ratesError && (
+            <div className="text-sm text-red-600">{ratesError}</div>
+          )}
+          {rates.length > 0 && !ratesError && (
             <RadioGroup value={rateValue} onValueChange={async (v) => {
               const [serviceName, amount] = v.split("::");
               const amt = parseFloat(amount);
