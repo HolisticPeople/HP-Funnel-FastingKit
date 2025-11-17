@@ -197,7 +197,6 @@ export default function Checkout() {
       setSelectedRate(undefined);
       setRateValue(undefined);
       setRatesError(friendly);
-      toast({ title: "Unable to fetch shipping rates", description: friendly, variant: "destructive" });
     } finally {
       setLoadingRates(false);
     }
