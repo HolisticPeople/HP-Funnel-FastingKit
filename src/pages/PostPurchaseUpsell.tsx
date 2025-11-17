@@ -46,7 +46,7 @@ export default function PostPurchaseUpsell() {
             `${FUNNEL_API_BASE}/orders/resolve?pi_id=${encodeURIComponent(piId)}`,
             { headers: { Accept: "application/json" } }
           );
-        if (res.ok) {
+          if (res.ok) {
             const j = await res.json();
             if (j && j.order_id) { setOrderId(Number(j.order_id)); return; }
           }
@@ -463,13 +463,7 @@ export default function PostPurchaseUpsell() {
             This offer is only available on this page. Your card will be charged ${total.toFixed(2)} if you accept.
           </p>
         </Card>
->>>>>>> hp/main
       </div>
     </div>
   );
 }
-<<<<<<< HEAD
-
-
-=======
->>>>>>> hp/main
