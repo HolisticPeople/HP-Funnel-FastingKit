@@ -1,0 +1,80 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      # Prod SSH connection
+      KINSTA_HOST: ${{ secrets.KINSTAPROD_HOST }}
+      KINSTA_USER: ${{ secrets.KINSTAPROD_USER }}
+      KINSTA_PORT: ${{ secrets.KINSTAPROD_PORT }}
+      KINSTA_SSH_KEY: ${{ secrets.KINSTAPROD_SSH_KEY }}
+      # Provide either KINSTAPROD_FUNNEL_PATH (full path) or KINSTAPROD_FUNNEL_ROOT + FUNNEL_SLUG
+      KINSTAPROD_FUNNEL_PATH: ${{ secrets.KINSTAPROD_FUNNEL_PATH }}
+      KINSTAPROD_FUNNEL_ROOT: ${{ secrets.KINSTAPROD_FUNNEL_ROOT }}
+      # App envs (production)
+      VITE_APP_ORIGIN: ${{ secrets.PROD_APP_ORIGIN }}
+      VITE_WP_BASE: ${{ secrets.PROD_WP_BASE }}
+      VITE_FUNNEL_API_BASE: ${{ secrets.PROD_FUNNEL_API_BASE }}
+      # Common
+      FUNNEL_SLUG: ${{ secrets.FUNNEL_SLUG }}
+      VITE_APP_BASEPATH: ${{ secrets.APP_BASE_PATH }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (production)
+        run: npm run build
+
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ env.KINSTA_SSH_KEY }}
+
+      - name: Add known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${KINSTA_PORT:-22}" "${KINSTA_HOST}" >> ~/.ssh/known_hosts
+
+      - name: Resolve deploy path and guard
+        run: |
+          if [ -n "${KINSTAPROD_FUNNEL_PATH}" ]; then
+            REMOTE_PATH="${KINSTAPROD_FUNNEL_PATH}"
+          elif [ -n "${KINSTAPROD_FUNNEL_ROOT}" ] && [ -n "${FUNNEL_SLUG}" ]; then
+            REMOTE_PATH="${KINSTAPROD_FUNNEL_ROOT%/}/${FUNNEL_SLUG}"
+          else
+            echo "Missing deploy path: set either KINSTAPROD_FUNNEL_PATH or KINSTAPROD_FUNNEL_ROOT + FUNNEL_SLUG"; exit 1
+          fi
+          echo "Deploying funnel to: ${REMOTE_PATH}"
+          case "$REMOTE_PATH" in
+            */wp-content/plugins|*/wp-content/plugins/) echo "Refusing to deploy to plugins directory"; exit 1 ;;
+          esac
+          echo "REMOTE_PATH=$REMOTE_PATH" >> $GITHUB_ENV
+          ssh -p "${KINSTA_PORT:-22}" "${KINSTA_USER}@${KINSTA_HOST}" "mkdir -p '${REMOTE_PATH}'"
+
+      - name: Rsync dist/ to Kinsta production
+        run: |
+          rsync -avz --delete -e "ssh -p ${KINSTA_PORT:-22}" \
+            dist/ "${KINSTA_USER}@${KINSTA_HOST}:${REMOTE_PATH}/"
+
+

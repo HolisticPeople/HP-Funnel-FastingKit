@@ -19,6 +19,7 @@ import {
 export default function Checkout() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState<BridgeAddress>({ country: "US" });
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingLookup, setLoadingLookup] = useState(false);
   const [loadingRates, setLoadingRates] = useState(false);
@@ -85,6 +86,7 @@ export default function Checkout() {
       const addr: BridgeAddress = {
         ...ship,
         email,
+        phone: ship?.phone || res?.default_billing?.phone || address.phone,
       };
       setAddress(addr);
       setPointsAvailable(Number(res.points_balance || 0));
@@ -179,6 +181,11 @@ export default function Checkout() {
 
   const pay = async () => {
     if (!email) { toast({ title: "Enter email", variant: "destructive" }); return; }
+    if (!address.phone || String(address.phone).trim() === "") {
+      setPhoneError("Phone number is required for shipping");
+      toast({ title: "Enter phone number", description: "Please add your shipping phone number.", variant: "destructive" });
+      return;
+    }
     try {
       setLoading(true);
       const res = await createIntent({
@@ -211,7 +218,7 @@ export default function Checkout() {
               <div className="flex gap-2">
                 <Input id="email" value={email} onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(null); }} placeholder="you@example.com" className={emailError ? "border-red-500" : ""} />
                 <Button type="button" onClick={prefill} disabled={loadingLookup} className={loadingLookup ? "animate-pulse" : ""}>
-                  {loadingLookup ? "Looking up…" : "I have an account with HolisticPeople!"}
+                  {loadingLookup ? (<><span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />Looking up…</>) : "I have an account with HolisticPeople!"}
                 </Button>
               </div>
               {emailError && <p className="text-sm text-red-600">{emailError}</p>}
@@ -228,6 +235,17 @@ export default function Checkout() {
               <Label htmlFor="city">City</Label>
               <Input id="city" value={address.city || ""} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Phone <span className="text-red-600">*</span></Label>
+              <Input
+                id="phone"
+                value={address.phone || ""}
+                onChange={(e) => { setAddress({ ...address, phone: e.target.value }); if (phoneError) setPhoneError(null); }}
+                placeholder="(555) 555‑5555"
+                className={phoneError ? "border-red-500" : ""}
+              />
+              {phoneError && <p className="text-sm text-red-600">{phoneError}</p>}
+            </div>
             <div className="grid gap-2 md:col-span-2">
               <Label htmlFor="address1">Address</Label>
               <Input id="address1" value={address.address_1 || ""} onChange={(e) => setAddress({ ...address, address_1: e.target.value })} />
@@ -235,7 +253,7 @@ export default function Checkout() {
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => loadRates()} disabled={loadingRates} className={loadingRates ? "animate-pulse" : ""}>
-              {loadingRates ? "Getting rates…" : "Get Shipping Rates"}
+              {loadingRates ? (<><span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />Getting rates…</>) : "Get Shipping Rates"}
             </Button>
             <Button onClick={loadTotals} disabled={(!selectedRate && rates.length > 0) || loading}>
               Refresh Totals
