@@ -139,7 +139,8 @@ export function buildHostedConfirmUrl(clientSecret: string, publishable?: string
     u.searchParams.set("pk", publishable);
   }
   if (successUrl) {
-    u.searchParams.set("succ", successUrl);
+    // Host page expects succ as a single query value; encode to avoid breaking query string
+    u.searchParams.set("succ", encodeURIComponent(successUrl));
   }
   return u.toString();
 }
