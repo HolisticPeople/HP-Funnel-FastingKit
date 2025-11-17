@@ -20,6 +20,7 @@ import {
   buildHostedConfirmUrl,
   type BridgeAddress,
 } from "@/api/bridge";
+import { APP_ORIGIN } from "@/config";
 
 export default function Checkout() {
   const [email, setEmail] = useState("");

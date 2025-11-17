@@ -44,7 +44,6 @@ async function post<T>(path: string, body: any): Promise<T> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Origin: APP_ORIGIN,
     },
     body: JSON.stringify(body),
     credentials: "omit",
@@ -62,7 +61,6 @@ async function get<T>(pathWithQuery: string): Promise<T> {
     method: "GET",
     headers: {
       Accept: "application/json",
-      Origin: APP_ORIGIN,
     },
     credentials: "omit",
   });
