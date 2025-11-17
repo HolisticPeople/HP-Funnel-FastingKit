@@ -8,7 +8,9 @@ import { getStatus } from "@/api/bridge";
 import Index from "./pages/Index";
 import KitBuilder from "./pages/KitBuilder";
 import NotFound from "./pages/NotFound";
+import ThankYou from "./pages/ThankYou";
 import Checkout from "./pages/Checkout";
+import PostPurchaseUpsell from "./pages/PostPurchaseUpsell";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,8 @@ const App = () => {
             <Route path="/" element={<Index />} />
             <Route path="/kit-builder" element={<KitBuilder />} />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/upsell" element={<PostPurchaseUpsell />} />
+            <Route path="/thank-you" element={<ThankYou />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -225,7 +225,10 @@ export default function Checkout() {
         selected_rate: useRate,
         points_to_redeem: pointsToRedeem,
       });
-      const url = buildHostedConfirmUrl(res.client_secret, res.publishable);
+      const base = ((import.meta as any).env?.VITE_APP_BASEPATH || "/").toString();
+      const normalizedBase = base.endsWith("/") ? base : `${base}/`;
+      const succ = `${APP_ORIGIN.replace(/\/$/,"")}${normalizedBase}upsell`;
+      const url = buildHostedConfirmUrl(res.client_secret, res.publishable, succ);
       window.location.href = url;
     } catch (e: any) {
       toast({ title: "Payment init failed", description: e.message, variant: "destructive" });

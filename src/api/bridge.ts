@@ -129,7 +129,7 @@ export async function createIntent(params: {
   return post("/checkout/intent", params);
 }
 
-export function buildHostedConfirmUrl(clientSecret: string, publishable?: string): string {
+export function buildHostedConfirmUrl(clientSecret: string, publishable?: string, successUrl?: string): string {
   const base = WP_BASE.replace(/\/$/, "");
   // Use query-param endpoint to avoid rewrite-rule dependency:
   // https://site/?hp_fb_confirm=1&cs=CLIENT_SECRET
@@ -139,6 +139,9 @@ export function buildHostedConfirmUrl(clientSecret: string, publishable?: string
   if (publishable) {
     // pass publishable so hosted page can choose the right Stripe environment
     u.searchParams.set("pk", publishable);
+  }
+  if (successUrl) {
+    u.searchParams.set("succ", successUrl);
   }
   return u.toString();
 }
@@ -151,6 +154,16 @@ export async function getStatus(params: {
     url.searchParams.set("funnel_id", params.funnel_id);
   }
   return get(`${url.pathname}${url.search}`);
+}
+
+export async function chargeUpsell(params: {
+  parent_order_id: number;
+  items?: BridgeItem[];
+  amount_override?: number;
+  funnel_name?: string;
+  fee_label?: string;
+}): Promise<{ ok: boolean; order_id: number }> {
+  return post("/upsell/charge", params);
 }
 
 
