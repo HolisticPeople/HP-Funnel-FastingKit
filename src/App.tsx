@@ -8,9 +8,9 @@ import { getStatus } from "@/api/bridge";
 import Index from "./pages/Index";
 import KitBuilder from "./pages/KitBuilder";
 import NotFound from "./pages/NotFound";
-import ThankYou from "./pages/ThankYou";
 import Checkout from "./pages/Checkout";
 import PostPurchaseUpsell from "./pages/PostPurchaseUpsell";
+import ThankYou from "./pages/ThankYou";
 
 const queryClient = new QueryClient();
 
