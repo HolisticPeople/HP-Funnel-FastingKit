@@ -41,7 +41,7 @@ export const enhancementProducts: Product[] = [
     description: "Potent lymphatic cleanser",
     dosage: "5 drops 3 times/day (start day 5)",
     price: 29.00, // 0.5 fl oz
-    image: "illumodine",
+    image: "iodine",
   },
   {
     id: "ncd",
