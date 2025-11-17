@@ -4,6 +4,7 @@ export interface Product {
   description: string;
   dosage: string;
   price: number;
+  image?: string;
 }
 
 export const basicKitProducts: Product[] = [
@@ -13,6 +14,7 @@ export const basicKitProducts: Product[] = [
     description: "Essential mineral support",
     dosage: "1-2 droppers 4 times/day under tongue for 30 seconds",
     price: 28.00, // 8 fl oz Mother Earth Minerals
+    image: "magnesium",
   },
   {
     id: "serraxym",
@@ -20,6 +22,7 @@ export const basicKitProducts: Product[] = [
     description: "Proteolytic enzymes",
     dosage: "2 capsules 3 times/day mixed in water",
     price: 62.00, // 93 capsules
+    image: "serraxym",
   },
   {
     id: "fasting-elixir",
@@ -27,6 +30,7 @@ export const basicKitProducts: Product[] = [
     description: "Tachyon energy support",
     dosage: "1 dropper 4 times/day mixed in water",
     price: 36.00, // 1 oz Tachyon product
+    image: "fasting-elixir",
   },
 ];
 
@@ -37,6 +41,7 @@ export const enhancementProducts: Product[] = [
     description: "Potent lymphatic cleanser",
     dosage: "5 drops 3 times/day (start day 5)",
     price: 29.00, // 0.5 fl oz
+    image: "illumodine",
   },
   {
     id: "ncd",
@@ -44,6 +49,7 @@ export const enhancementProducts: Product[] = [
     description: "Heavy metal removal",
     dosage: "15 drops 4 times/day",
     price: 42.00, // 15ml Waiora
+    image: "ncd",
   },
   {
     id: "radneut",
@@ -51,6 +57,7 @@ export const enhancementProducts: Product[] = [
     description: "Anti-radiation support",
     dosage: "12 drops once daily - hold under tongue for 30 seconds",
     price: 62.00, // 1 fl oz
+    image: "radneut",
   },
 ];
 
@@ -61,6 +68,7 @@ export const postPurchaseProducts: Product[] = [
     description: "Digestive enzyme support",
     dosage: "Take with meals to support digestion",
     price: 62.00, // 93 capsules
+    image: "digestxym",
   },
   {
     id: "triphala",
@@ -68,28 +76,43 @@ export const postPurchaseProducts: Product[] = [
     description: "Ayurvedic bowel support",
     dosage: "1 teaspoon or 2 caps 3 times/day until first bowel movement",
     price: 21.99, // 90 capsules
+    image: "triphala",
   },
 ];
+
+const KIT_DISCOUNT = 0.10; // 10% off
+const UPSELL_DISCOUNT = 0.15; // 15% off
 
 export const calculateKitPrice = (
   includeEnhancements: string[] = [],
   twoPerson: boolean = false
-): number => {
-  let total = basicKitProducts.reduce((sum, product) => sum + product.price, 0);
+): { total: number; originalTotal: number; savings: number } => {
+  let originalTotal = basicKitProducts.reduce((sum, product) => sum + product.price, 0);
   
   enhancementProducts.forEach((product) => {
     if (includeEnhancements.includes(product.id)) {
-      total += product.price;
+      originalTotal += product.price;
     }
   });
   
   if (twoPerson) {
-    total *= 2;
+    originalTotal *= 2;
   }
   
-  return total;
+  const total = originalTotal * (1 - KIT_DISCOUNT);
+  const savings = originalTotal - total;
+  
+  return { total, originalTotal, savings };
 };
 
-export const calculateOffFastKitPrice = (): number => {
-  return postPurchaseProducts.reduce((sum, product) => sum + product.price, 0);
+export const calculateOffFastKitPrice = (): { total: number; originalTotal: number; savings: number } => {
+  const originalTotal = postPurchaseProducts.reduce((sum, product) => sum + product.price, 0);
+  const total = originalTotal * (1 - UPSELL_DISCOUNT);
+  const savings = originalTotal - total;
+  return { total, originalTotal, savings };
+};
+
+export const getDiscountedPrice = (price: number, isUpsell: boolean = false): number => {
+  const discount = isUpsell ? UPSELL_DISCOUNT : KIT_DISCOUNT;
+  return price * (1 - discount);
 };
