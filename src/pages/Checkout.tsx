@@ -40,6 +40,7 @@ export default function Checkout() {
   const [pointsAvailable, setPointsAvailable] = useState<number>(0);
   const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
   const [recalcPending, setRecalcPending] = useState(false);
+  const [ratesSig, setRatesSig] = useState<string | null>(null);
   const calcSeqRef = useRef(0);
   const allowedMax = useMemo(() => {
     const subtotal = Number(totals?.subtotal || 0);
@@ -58,6 +59,14 @@ export default function Checkout() {
     const g = subtotal + shipping - pts;
     return Math.max(0, Number.isFinite(g) ? g : 0);
   };
+
+  const signatureForAddress = (a: BridgeAddress) => {
+    const c = String(a.country || "").trim().toUpperCase();
+    const p = String(a.postcode || "").trim().toUpperCase();
+    return `${c}|${p}`;
+  };
+  const currentRatesSig = useMemo(() => signatureForAddress(address), [address.country, address.postcode]);
+  const ratesStale = useMemo(() => !ratesSig || ratesSig !== currentRatesSig, [ratesSig, currentRatesSig]);
 
   const items = useMemo(() => {
     const sel = loadKitSelection();
@@ -129,7 +138,7 @@ export default function Checkout() {
     return ok;
   };
 
-  const loadRates = async (addrOverride?: BridgeAddress) => {
+  const loadRates = async (addrOverride?: BridgeAddress): Promise<{ serviceName: string; amount: number } | undefined> => {
     if (!validateRequired()) { return; }
     try {
       setLoadingRates(true);
@@ -141,6 +150,7 @@ export default function Checkout() {
       const res = await getRates(payload);
       const list = res.rates || [];
       setRates(list);
+      setRatesSig(signatureForAddress(addrOverride || address));
       // Pre-select the cheapest rate and compute totals automatically
       if (list.length > 0) {
         const cheapest = [...list].sort((a, b) => {
@@ -173,6 +183,7 @@ export default function Checkout() {
             setRecalcPending(false);
           }
         }).catch(() => setRecalcPending(false));
+        return selected;
       } else {
         setSelectedRate(undefined);
         setRateValue(undefined);
@@ -190,6 +201,14 @@ export default function Checkout() {
     if (!validateRequired()) { return; }
     try {
       setLoading(true);
+      if (!selectedRate || ratesStale) {
+        const sel = await loadRates();
+        if (!sel) {
+          toast({ title: "Shipping rates required", description: "Update shipping rates for the current address.", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+      }
       const res = await createIntent({
         funnel_id: "fastingkit",
         funnel_name: "Fasting Kit",
@@ -300,20 +319,22 @@ export default function Checkout() {
         </Card>
 
         <Card className="p-6 grid gap-4">
-          <h2 className="text-xl font-semibold">Shipping Options</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Shipping Options</h2>
+            <div className="flex items-center gap-3">
+              {ratesStale && <span className="text-amber-700 text-sm">Address changed — update rates</span>}
+              <Button variant="secondary" onClick={() => loadRates()} disabled={loadingRates} className={loadingRates ? "animate-pulse" : ""}>
+                {loadingRates ? (<><span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />Getting rates…</>) : (rates.length > 0 ? "Update Shipping Rates" : "Get Shipping Rates")}
+              </Button>
+            </div>
+          </div>
           {loadingRates && (
             <div className="text-sm text-emerald-700 flex items-center">
               <span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
               Fetching shipping rates…
             </div>
           )}
-          {rates.length === 0 ? (
-            <div className="flex">
-              <Button variant="secondary" onClick={() => loadRates()} disabled={loadingRates} className={loadingRates ? "animate-pulse" : ""}>
-                {loadingRates ? (<><span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />Getting rates…</>) : "Get Shipping Rates"}
-              </Button>
-            </div>
-          ) : (
+          {rates.length > 0 && (
             <RadioGroup value={rateValue} onValueChange={async (v) => {
               const [serviceName, amount] = v.split("::");
               const amt = parseFloat(amount);
@@ -426,7 +447,7 @@ export default function Checkout() {
         )}
 
         <div className="flex justify-end">
-          <Button size="lg" onClick={pay} disabled={loading || loadingRates || loadingLookup || recalcPending}>
+          <Button size="lg" onClick={pay} disabled={loading || loadingRates || loadingLookup || recalcPending || ratesStale || !selectedRate}>
             {totals ? `Pay $${Number(totals.grand_total || 0).toFixed(2)}` : "Pay"}
           </Button>
         </div>
