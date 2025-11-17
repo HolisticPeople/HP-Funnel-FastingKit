@@ -223,6 +223,12 @@ export default function Checkout() {
               </div>
               {emailError && <p className="text-sm text-red-600">{emailError}</p>}
             </div>
+            {loadingLookup && (
+              <div className="md:col-span-2 text-sm text-emerald-700 flex items-center">
+                <span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                Looking up your account…
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="country">Country</Label>
               <Input id="country" value={address.country || ""} onChange={(e) => setAddress({ ...address, country: e.target.value })} />
@@ -264,6 +270,12 @@ export default function Checkout() {
         {rates.length > 0 && (
           <Card className="p-6 grid gap-4">
             <h2 className="text-xl font-semibold">Shipping Options</h2>
+            {(loadingRates || recalcPending) && (
+              <div className="text-sm text-emerald-700 flex items-center">
+                <span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                {loadingRates ? "Fetching shipping rates…" : "Recalculating totals…"}
+              </div>
+            )}
             <RadioGroup value={rateValue} onValueChange={async (v) => {
               const [serviceName, amount] = v.split("::");
               const amt = parseFloat(amount);
