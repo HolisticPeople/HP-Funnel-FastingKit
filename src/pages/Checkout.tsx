@@ -20,6 +20,10 @@ export default function Checkout() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState<BridgeAddress>({ country: "US" });
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [countryError, setCountryError] = useState<string | null>(null);
+  const [postcodeError, setPostcodeError] = useState<string | null>(null);
+  const [cityError, setCityError] = useState<string | null>(null);
+  const [addr1Error, setAddr1Error] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingLookup, setLoadingLookup] = useState(false);
   const [loadingRates, setLoadingRates] = useState(false);
@@ -89,6 +93,11 @@ export default function Checkout() {
         phone: ship?.phone || res?.default_billing?.phone || address.phone,
       };
       setAddress(addr);
+      setCountryError(null);
+      setPostcodeError(null);
+      setCityError(null);
+      setAddr1Error(null);
+      setPhoneError(null);
       setPointsAvailable(Number(res.points_balance || 0));
       // Auto-fetch shipping rates immediately on successful lookup
       await loadRates(addr);
@@ -99,7 +108,19 @@ export default function Checkout() {
     }
   };
 
+  const validateRequired = (): boolean => {
+    let ok = true;
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) { setEmailError("Valid email is required"); ok = false; } else { setEmailError(null); }
+    if (!address.country) { setCountryError("Country is required"); ok = false; } else { setCountryError(null); }
+    if (!address.postcode) { setPostcodeError("Postcode is required"); ok = false; } else { setPostcodeError(null); }
+    if (!address.city) { setCityError("City is required"); ok = false; } else { setCityError(null); }
+    if (!address.address_1) { setAddr1Error("Address is required"); ok = false; } else { setAddr1Error(null); }
+    if (!address.phone) { setPhoneError("Phone number is required"); ok = false; } else { setPhoneError(null); }
+    return ok;
+  };
+
   const loadRates = async (addrOverride?: BridgeAddress) => {
+    if (!validateRequired()) { return; }
     try {
       setLoadingRates(true);
       const payload = {
@@ -180,12 +201,7 @@ export default function Checkout() {
   };
 
   const pay = async () => {
-    if (!email) { toast({ title: "Enter email", variant: "destructive" }); return; }
-    if (!address.phone || String(address.phone).trim() === "") {
-      setPhoneError("Phone number is required for shipping");
-      toast({ title: "Enter phone number", description: "Please add your shipping phone number.", variant: "destructive" });
-      return;
-    }
+    if (!validateRequired()) { return; }
     try {
       setLoading(true);
       const res = await createIntent({
@@ -231,18 +247,21 @@ export default function Checkout() {
             )}
             <div className="grid gap-2">
               <Label htmlFor="country">Country</Label>
-              <Input id="country" value={address.country || ""} onChange={(e) => setAddress({ ...address, country: e.target.value })} />
+              <Input id="country" value={address.country || ""} onChange={(e) => { setAddress({ ...address, country: e.target.value }); if (countryError) setCountryError(null); }} className={countryError ? "border-red-500" : ""} />
+              {countryError && <p className="text-sm text-red-600">{countryError}</p>}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="postcode">Postcode</Label>
-              <Input id="postcode" value={address.postcode || ""} onChange={(e) => setAddress({ ...address, postcode: e.target.value })} />
+              <Input id="postcode" value={address.postcode || ""} onChange={(e) => { setAddress({ ...address, postcode: e.target.value }); if (postcodeError) setPostcodeError(null); }} className={postcodeError ? "border-red-500" : ""} />
+              {postcodeError && <p className="text-sm text-red-600">{postcodeError}</p>}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="city">City</Label>
-              <Input id="city" value={address.city || ""} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
+              <Input id="city" value={address.city || ""} onChange={(e) => { setAddress({ ...address, city: e.target.value }); if (cityError) setCityError(null); }} className={cityError ? "border-red-500" : ""} />
+              {cityError && <p className="text-sm text-red-600">{cityError}</p>}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="phone">Phone <span className="text-red-600">*</span></Label>
+              <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
                 value={address.phone || ""}
@@ -254,7 +273,8 @@ export default function Checkout() {
             </div>
             <div className="grid gap-2 md:col-span-2">
               <Label htmlFor="address1">Address</Label>
-              <Input id="address1" value={address.address_1 || ""} onChange={(e) => setAddress({ ...address, address_1: e.target.value })} />
+              <Input id="address1" value={address.address_1 || ""} onChange={(e) => { setAddress({ ...address, address_1: e.target.value }); if (addr1Error) setAddr1Error(null); }} className={addr1Error ? "border-red-500" : ""} />
+              {addr1Error && <p className="text-sm text-red-600">{addr1Error}</p>}
             </div>
           </div>
           <div className="flex gap-2">
