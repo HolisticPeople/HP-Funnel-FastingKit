@@ -49,7 +49,7 @@ export default function Checkout() {
     const netProducts = Math.max(0, subtotal - discount);
     const bySubtotal = Math.max(0, Math.floor(netProducts * 10)); // 10 pts == $1
     return Math.max(0, Math.min(pointsAvailable, bySubtotal));
-  }, [pointsAvailable, totals?.subtotal]);
+  }, [pointsAvailable, totals?.subtotal, totals?.discount_total]);
 
   // Helper to quickly derive a new grand total without waiting for server
   const deriveGrand = (base: any, nextShipping?: number, nextPointsDiscount?: number) => {
@@ -124,24 +124,25 @@ export default function Checkout() {
     }
   };
 
-  const validateRequired = (): boolean => {
+  const validateRequired = (addrOverride?: BridgeAddress): boolean => {
     let ok = true;
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) { setEmailError("Valid email is required"); ok = false; } else { setEmailError(null); }
-    if (!address.country || !countryCodeSet.has(String(address.country).toUpperCase())) {
+    const addrRef = addrOverride ?? address;
+    if (!addrRef.country || !countryCodeSet.has(String(addrRef.country).toUpperCase())) {
       setCountryError("Select a valid country");
       ok = false;
     } else {
       setCountryError(null);
     }
-    if (!address.postcode) { setPostcodeError("Postcode is required"); ok = false; } else { setPostcodeError(null); }
-    if (!address.city) { setCityError("City is required"); ok = false; } else { setCityError(null); }
-    if (!address.address_1) { setAddr1Error("Address is required"); ok = false; } else { setAddr1Error(null); }
-    if (!address.phone) { setPhoneError("Phone number is required"); ok = false; } else { setPhoneError(null); }
+    if (!addrRef.postcode) { setPostcodeError("Postcode is required"); ok = false; } else { setPostcodeError(null); }
+    if (!addrRef.city) { setCityError("City is required"); ok = false; } else { setCityError(null); }
+    if (!addrRef.address_1) { setAddr1Error("Address is required"); ok = false; } else { setAddr1Error(null); }
+    if (!addrRef.phone) { setPhoneError("Phone number is required"); ok = false; } else { setPhoneError(null); }
     return ok;
   };
 
   const loadRates = async (addrOverride?: BridgeAddress): Promise<{ serviceName: string; amount: number } | undefined> => {
-    if (!validateRequired()) { return; }
+    if (!validateRequired(addrOverride || address)) { return; }
     try {
       setLoadingRates(true);
       const payload = {
@@ -205,16 +206,14 @@ export default function Checkout() {
   // Removed manual Refresh Totals button; totals revalidate automatically
 
   const pay = async () => {
-    if (!validateRequired()) { return; }
+    if (!validateRequired(address)) { return; }
     try {
       setLoading(true);
-      if (!selectedRate || ratesStale) {
+      let useRate = selectedRate;
+      if (!useRate || ratesStale) {
         const sel = await loadRates();
-        if (!sel) {
-          toast({ title: "Shipping rates required", description: "Update shipping rates for the current address.", variant: "destructive" });
-          setLoading(false);
-          return;
-        }
+        if (!sel) { setLoading(false); return; }
+        useRate = sel;
       }
       const res = await createIntent({
         funnel_id: "fastingkit",
@@ -223,7 +222,7 @@ export default function Checkout() {
         shipping_address: address,
         items,
         coupon_codes: [],
-        selected_rate: selectedRate,
+        selected_rate: useRate,
         points_to_redeem: pointsToRedeem,
       });
       const url = buildHostedConfirmUrl(res.client_secret);
