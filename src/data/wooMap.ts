@@ -22,8 +22,8 @@ export const ENHANCEMENTS: Record<string, { sku?: string; product_id?: number }>
 // Optional: Map upsell kit products if you want individual line items on the parent order.
 // Leave sku/product_id undefined to fall back to a single fee on the order.
 export const UPSELL_PRODUCTS: Record<string, { sku?: string; product_id?: number }> = {
-  digestxym: { sku: undefined, product_id: undefined },
-  triphala:  { sku: undefined, product_id: undefined },
+  digestxym: { sku: "USE-260", product_id: undefined },
+  triphala:  { sku: "OI-trip90", product_id: undefined },
 };
 
 export type KitSelection = { extras: string[]; twoPerson: boolean };
