@@ -72,19 +72,26 @@ export default function ThankYou() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {summary?.items?.map((item, idx) => (
+              {summary?.items?.map((item, idx) => {
+                const unitAfter = item.qty > 0 ? item.total / item.qty : item.total;
+                return (
                 <TableRow key={idx}>
-                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-3">
+                      {item.image && <img src={item.image} alt={item.name} width={40} height={40} className="rounded bg-white" />}
+                      <span>{item.name}</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-center">{item.qty}</TableCell>
-                  <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-green-600">
-                    -${(item.discount).toFixed(2)}
+                  <TableCell className="text-right">
+                    <span className="line-through opacity-70 mr-2">${item.price.toFixed(2)}</span>
+                    <span>${unitAfter.toFixed(2)}</span>
                   </TableCell>
                   <TableCell className="text-right font-semibold">
                     ${(item.total).toFixed(2)}
                   </TableCell>
                 </TableRow>
-              ))}
+              )})}
               <TableRow className="border-t-2">
                 <TableCell colSpan={4} className="text-right font-semibold">Subtotal:</TableCell>
                 <TableCell className="text-right font-bold">${summary?.subtotal.toFixed(2) || '0.00'}</TableCell>

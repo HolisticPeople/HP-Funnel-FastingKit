@@ -13,7 +13,7 @@ export const basicKitProducts: Product[] = [
     name: "Magnesium (Angstrom)",
     description: "Essential mineral support",
     dosage: "1-2 droppers 4 times/day under tongue for 30 seconds",
-    price: 28.00, // 8 fl oz Mother Earth Minerals
+    price: 24.00, // 8 fl oz Mother Earth Minerals
     image: "magnesium",
   },
   {
@@ -29,7 +29,7 @@ export const basicKitProducts: Product[] = [
     name: "Tachyon Fasting Elixir",
     description: "Tachyon energy support",
     dosage: "1 dropper 4 times/day mixed in water",
-    price: 36.00, // 1 oz Tachyon product
+    price: 34.98, // 1 oz Tachyon product
     image: "fasting-elixir",
   },
 ];
