@@ -173,7 +173,7 @@ export type OrderSummary = {
   order_id: number;
   order_number: string;
   currency: string;
-  items: Array<{ name: string; qty: number; price: number; discount: number; total: number }>;
+  items: Array<{ name: string; qty: number; price: number; discount: number; total: number; image?: string; sku?: string }>;
   subtotal: number;
   items_discount: number;
   shipping_total: number;
