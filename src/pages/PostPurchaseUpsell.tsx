@@ -67,7 +67,7 @@ export default function PostPurchaseUpsell() {
   const handleAccept = async () => {
     setIsProcessing(true);
     try {
-      if (!orderId) throw new Error("Order not ready yet");
+      if (!orderId && !piId) throw new Error("Order not ready yet");
       // Build items from upsell map if configured; otherwise rely on fee fallback server-side
       const items: BridgeItem[] = Object.keys(UPSELL_PRODUCTS).map((key) => {
         const m = (UPSELL_PRODUCTS as any)[key] || {};
@@ -77,14 +77,16 @@ export default function PostPurchaseUpsell() {
         return it;
       }).filter((it) => it.product_id || it.sku);
 
-      await chargeUpsell({
+      const res = await chargeUpsell({
         parent_order_id: orderId,
         items: items.length ? items : undefined,
         amount_override: total,
         funnel_name: "Fasting Kit",
         fee_label: "Off The Fast Kit",
       });
-      navigate("/thank-you", { replace: true });
+      const finalId = res?.order_id || orderId;
+      const search = finalId ? `?order_id=${encodeURIComponent(String(finalId))}` : (piId ? `?pi_id=${encodeURIComponent(piId)}` : "");
+      navigate(`/thank-you${search}`, { replace: true });
     } catch (e: any) {
       alert(e?.message || "Upsell charge failed");
       setIsProcessing(false);
@@ -92,7 +94,8 @@ export default function PostPurchaseUpsell() {
   };
 
   const handleDecline = () => {
-    navigate("/thank-you", { replace: true });
+    const search = orderId ? `?order_id=${encodeURIComponent(String(orderId))}` : (piId ? `?pi_id=${encodeURIComponent(piId)}` : "");
+    navigate(`/thank-you${search}`, { replace: true });
   };
 
   return (
