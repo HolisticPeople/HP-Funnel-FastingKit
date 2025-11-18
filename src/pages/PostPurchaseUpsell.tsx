@@ -13,7 +13,8 @@ import ncdImg from "@/assets/ncd.png";
 import radneutImg from "@/assets/radneut.png";
 import digestxymImg from "@/assets/digestxym.png";
 import triphalaImg from "@/assets/triphala.png";
-import { chargeUpsell } from "@/api/bridge";
+import { chargeUpsell, type BridgeItem } from "@/api/bridge";
+import { UPSELL_PRODUCTS } from "@/data/wooMap";
 import { FUNNEL_API_BASE } from "@/config";
 
 const productImages: Record<string, string> = {
@@ -62,8 +63,18 @@ export default function PostPurchaseUpsell() {
     setIsProcessing(true);
     try {
       if (!orderId) throw new Error("Order not ready yet");
+      // Build items from upsell map if configured; otherwise rely on fee fallback server-side
+      const items: BridgeItem[] = Object.keys(UPSELL_PRODUCTS).map((key) => {
+        const m = (UPSELL_PRODUCTS as any)[key] || {};
+        const it: any = { qty: 1 };
+        if (m.product_id) it.product_id = m.product_id;
+        if (m.sku) it.sku = m.sku;
+        return it;
+      }).filter((it) => it.product_id || it.sku);
+
       await chargeUpsell({
         parent_order_id: orderId,
+        items: items.length ? items : undefined,
         amount_override: total,
         funnel_name: "Fasting Kit",
         fee_label: "Off The Fast Kit",

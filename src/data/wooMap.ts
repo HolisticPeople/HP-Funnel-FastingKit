@@ -19,6 +19,13 @@ export const ENHANCEMENTS: Record<string, { sku?: string; product_id?: number }>
   radneut: { sku: "HG-RadNeut1", product_id: undefined },
 };
 
+// Optional: Map upsell kit products if you want individual line items on the parent order.
+// Leave sku/product_id undefined to fall back to a single fee on the order.
+export const UPSELL_PRODUCTS: Record<string, { sku?: string; product_id?: number }> = {
+  digestxym: { sku: undefined, product_id: undefined },
+  triphala:  { sku: undefined, product_id: undefined },
+};
+
 export type KitSelection = { extras: string[]; twoPerson: boolean };
 
 export function loadKitSelection(): KitSelection {
