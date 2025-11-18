@@ -226,10 +226,12 @@ export default function Checkout() {
         selected_rate: useRate,
         points_to_redeem: pointsToRedeem,
       });
-      // Build success URL robustly whether APP_ORIGIN already includes the base path or not
-      const appOrigin = ((import.meta as any).env?.VITE_APP_ORIGIN || window.location.origin).toString();
-      const base = ((import.meta as any).env?.VITE_APP_BASEPATH || "/").toString();
-      const baseUrl = new URL(base.startsWith("/") ? base : `/${base}`, appOrigin); // resolves correctly in both cases
+      // Build success URL from the current location to avoid env misconfiguration
+      const appOrigin = window.location.origin.toString();
+      // e.g. /funnels/fastingkit/checkout -> /funnels/fastingkit/
+      const path = window.location.pathname;
+      const rootPath = path.replace(/\\/checkout(?:\\/.*)?$/, "/");
+      const baseUrl = new URL(rootPath, appOrigin);
       const succ = new URL("upsell", baseUrl).toString();
       const url = buildHostedConfirmUrl(res.client_secret, res.publishable, succ);
       window.location.href = url;
