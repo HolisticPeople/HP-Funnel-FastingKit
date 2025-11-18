@@ -1,6 +1,51 @@
 name: Deploy to Production
 
 on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm install --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_APP_BASEPATH: ${{ secrets.APP_BASE_PATH || '/fastingkit/' }}
+
+      - name: Prepare remote path
+        id: path
+        run: |
+          if [ -n "${{ secrets.KINSTA_FUNNEL_PROD_PATH }}" ]; then
+            echo "REMOTE=${{ secrets.KINSTA_FUNNEL_PROD_PATH }}" >> $GITHUB_OUTPUT
+          else
+            echo "REMOTE=${{ secrets.KINSTA_FUNNEL_ROOT }}/fastingkit" >> $GITHUB_OUTPUT
+          fi
+          echo "Remote path: ${{ steps.path.outputs.REMOTE }}"
+
+      - name: Deploy (rsync)
+        run: |
+          REMOTE="${{ steps.path.outputs.REMOTE }}"
+          if [ -z "$REMOTE" ] || [[ "$REMOTE" == */wp-content/plugins* ]]; then
+            echo "Refusing to deploy to unsafe path"; exit 1
+          fi
+          rsync -az --delete ./dist/ -e "ssh -p ${{ secrets.KINSTA_PORT }} -i ${{ secrets.KINSTA_SSH_KEY }}" ${{ secrets.KINSTA_USER }}@${{ secrets.KINSTA_HOST }}:"$REMOTE/"
+
+name: Deploy to Production
+
+on:
   # Make production deploys manual-only
   workflow_dispatch:
 
