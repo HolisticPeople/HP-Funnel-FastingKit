@@ -228,9 +228,13 @@ export default function Checkout() {
       });
       // Build success URL from the current location to avoid env misconfiguration
       const appOrigin = window.location.origin.toString();
-      // e.g. /funnels/fastingkit/checkout -> /funnels/fastingkit/
-      const path = window.location.pathname;
-      const rootPath = path.replace(/\\/checkout(?:\\/.*)?$/, "/");
+      // Derive app root from current pathname (removes trailing /checkout if present)
+      const path = window.location.pathname.replace(/\/+$/, ""); // strip trailing slash
+      const parts = path.split("/");
+      if (parts[parts.length - 1] === "checkout") {
+        parts.pop();
+      }
+      const rootPath = (parts.join("/") || "/") + "/";
       const baseUrl = new URL(rootPath, appOrigin);
       const succ = new URL("upsell", baseUrl).toString();
       const url = buildHostedConfirmUrl(res.client_secret, res.publishable, succ);
