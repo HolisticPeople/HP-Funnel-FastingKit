@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { basicKitProducts, enhancementProducts, calculateKitPrice, getDiscountedPrice } from "@/data/products";
 import { saveKitSelection } from "@/data/wooMap";
-import magnesiumImg from "@/assets/magnesium.png";
-import fastingElixirImg from "@/assets/fasting-elixir.png";
-import serraxymImg from "@/assets/serraxym.png";
-import illumodineImg from "@/assets/illumodine.png";
-import ncdImg from "@/assets/ncd.png";
-import radneutImg from "@/assets/radneut.png";
+import magnesiumImg from "@/assets/magnesium.png?w=160;webp;as=src";
+import fastingElixirImg from "@/assets/fasting-elixir.png?w=160;webp;as=src";
+import serraxymImg from "@/assets/serraxym.png?w=160;webp;as=src";
+import illumodineImg from "@/assets/illumodine.png?w=160;webp;as=src";
+import ncdImg from "@/assets/ncd.png?w=160;webp;as=src";
+import radneutImg from "@/assets/radneut.png?w=160;webp;as=src";
 
 const productImages: Record<string, string> = {
   magnesium: magnesiumImg,
@@ -77,6 +77,11 @@ export default function KitBuilder() {
                     src={productImages[product.image]}
                     alt={product.name}
                     className="w-16 h-16 object-contain rounded-lg bg-white p-1"
+                    width={64}
+                    height={64}
+                    loading="lazy"
+                    decoding="async"
+                    fetchpriority="low"
                   />
                 )}
                 <div className="flex-1">
@@ -123,6 +128,11 @@ export default function KitBuilder() {
                     src={productImages[product.image]}
                     alt={product.name}
                     className="w-16 h-16 object-contain rounded-lg bg-white p-1"
+                    width={64}
+                    height={64}
+                    loading="lazy"
+                    decoding="async"
+                    fetchpriority="low"
                   />
                 )}
                 <div className="flex-1">

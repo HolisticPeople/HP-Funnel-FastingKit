@@ -5,14 +5,14 @@ import { Card } from "@/components/ui/card";
 import { postPurchaseProducts, calculateOffFastKitPrice } from "@/data/products";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Sparkles } from "lucide-react";
-import magnesiumImg from "@/assets/magnesium.png";
-import fastingElixirImg from "@/assets/fasting-elixir.png";
-import serraxymImg from "@/assets/serraxym.png";
-import illumodineImg from "@/assets/illumodine.png";
-import ncdImg from "@/assets/ncd.png";
-import radneutImg from "@/assets/radneut.png";
-import digestxymImg from "@/assets/digestxym.png";
-import triphalaImg from "@/assets/triphala.png";
+import magnesiumImg from "@/assets/magnesium.png?w=160;webp;as=src";
+import fastingElixirImg from "@/assets/fasting-elixir.png?w=160;webp;as=src";
+import serraxymImg from "@/assets/serraxym.png?w=160;webp;as=src";
+import illumodineImg from "@/assets/illumodine.png?w=160;webp;as=src";
+import ncdImg from "@/assets/ncd.png?w=160;webp;as=src";
+import radneutImg from "@/assets/radneut.png?w=160;webp;as=src";
+import digestxymImg from "@/assets/digestxym.png?w=160;webp;as=src";
+import triphalaImg from "@/assets/triphala.png?w=160;webp;as=src";
 import { chargeUpsell, type BridgeItem } from "@/api/bridge";
 import { UPSELL_PRODUCTS } from "@/data/wooMap";
 import { FUNNEL_API_BASE } from "@/config";
@@ -146,6 +146,11 @@ export default function PostPurchaseUpsell() {
                     src={productImages[product.image]}
                     alt={product.name}
                     className="w-20 h-20 object-contain rounded-lg bg-white p-2"
+                    width={80}
+                    height={80}
+                    loading="lazy"
+                    decoding="async"
+                    fetchpriority="low"
                   />
                 )}
                 <div className="flex-1">
