@@ -35,6 +35,21 @@
             }
           }
         }catch(_err){}
+        // If redirected with ?go=upsell, rewrite to /upsell route client-side (avoid server 404s on deep links)
+        try {
+          var params = new URLSearchParams(window.location.search || "");
+          var go = params.get("go");
+          if (go === "upsell") {
+            params.delete("go");
+            var base = (window.location.pathname || "/");
+            // Ensure trailing slash for base path
+            if (base.slice(-1) !== "/") base += "/";
+            var target = base.replace(/\/+$/, "/") + "upsell";
+            var qs = params.toString();
+            var next = target + (qs ? ("?" + qs) : "");
+            window.history.replaceState(null, "", next);
+          }
+        } catch(_e) {}
         // allow render
         document.documentElement.style.visibility="visible";
       })();
