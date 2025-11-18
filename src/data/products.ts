@@ -80,8 +80,8 @@ export const postPurchaseProducts: Product[] = [
   },
 ];
 
-const KIT_DISCOUNT = 0.10; // 10% off
-const UPSELL_DISCOUNT = 0.15; // 15% off
+export const KIT_DISCOUNT = 0.10; // 10% off
+export const UPSELL_DISCOUNT = 0.15; // 15% off
 
 export const calculateKitPrice = (
   includeEnhancements: string[] = [],
