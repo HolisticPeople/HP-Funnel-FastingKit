@@ -5,6 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Mail, User } from "lucide-react";
 import { getOrderSummary, resolveOrderByPi, type OrderSummary } from "@/api/bridge";
+import { KIT_DISCOUNT, UPSELL_DISCOUNT, basicKitProducts, enhancementProducts, postPurchaseProducts } from "@/data/products";
+import { KIT_BASE, ENHANCEMENTS, UPSELL_PRODUCTS } from "@/data/wooMap";
 
 export default function ThankYou() {
   const [params] = useSearchParams();
@@ -40,6 +42,32 @@ export default function ThankYou() {
     return () => { cancelled = true; };
   }, [orderIdParam, piIdParam]);
 
+  // Build SKU->original price map from product catalogs
+  const skuPriceMap: Record<string, number> = (() => {
+    const map: Record<string, number> = {};
+    // base kit
+    KIT_BASE.forEach((k) => {
+      const prod = basicKitProducts.find(p => p.id === k.key);
+      if (prod && k.sku) map[k.sku] = prod.price;
+    });
+    // enhancements (10% group)
+    Object.entries(ENHANCEMENTS).forEach(([key, def]) => {
+      const prod = enhancementProducts.find(p => p.id === key);
+      if (prod && def.sku) map[def.sku] = prod.price;
+    });
+    // upsell (15% group)
+    Object.entries(UPSELL_PRODUCTS).forEach(([key, def]) => {
+      const prod = postPurchaseProducts.find(p => p.id === key);
+      if (prod && def.sku) map[def.sku] = prod.price;
+    });
+    return map;
+  })();
+
+  const isUpsellSku = (sku?: string) => {
+    if (!sku) return false;
+    return !!Object.values(UPSELL_PRODUCTS).find((v) => v.sku === sku);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-secondary/20 to-accent/10 p-8">
       <div className="container mx-auto max-w-3xl">
@@ -73,7 +101,10 @@ export default function ThankYou() {
             </TableHeader>
             <TableBody>
               {summary?.items?.map((item, idx) => {
-                const unitAfter = item.qty > 0 ? item.total / item.qty : item.total;
+                // Determine original and discounted unit prices
+                const msrp = (item.sku && skuPriceMap[item.sku]) ? skuPriceMap[item.sku] : item.price;
+                const discountRate = isUpsellSku(item.sku) ? UPSELL_DISCOUNT : KIT_DISCOUNT;
+                const unitAfter = +(msrp * (1 - discountRate));
                 return (
                 <TableRow key={idx}>
                   <TableCell className="font-medium">
@@ -84,11 +115,11 @@ export default function ThankYou() {
                   </TableCell>
                   <TableCell className="text-center">{item.qty}</TableCell>
                   <TableCell className="text-right">
-                    <span className="line-through opacity-70 mr-2">${item.price.toFixed(2)}</span>
+                    <span className="line-through opacity-70 mr-2">${msrp.toFixed(2)}</span>
                     <span>${unitAfter.toFixed(2)}</span>
                   </TableCell>
                   <TableCell className="text-right font-semibold">
-                    ${(item.total).toFixed(2)}
+                    ${(unitAfter * item.qty).toFixed(2)}
                   </TableCell>
                 </TableRow>
               )})}
