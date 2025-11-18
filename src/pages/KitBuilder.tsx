@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { basicKitProducts, enhancementProducts, calculateKitPrice, getDiscountedPrice } from "@/data/products";
 import { saveKitSelection } from "@/data/wooMap";
 function assetUrl(file: string): string {
-  return new URL(`/img/thumbs/${file}`, (import.meta as any).env.BASE_URL || "/").toString();
+  const base = ((import.meta as any).env?.BASE_URL || "/") as string;
+  const normalized = base.endsWith("/") ? base : `${base}/`;
+  return `${normalized}img/thumbs/${file}`;
 }
 const magnesiumImg = assetUrl("magnesium.webp");
 const fastingElixirImg = assetUrl("fasting-elixir.webp");
