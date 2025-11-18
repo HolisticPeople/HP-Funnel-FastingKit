@@ -164,4 +164,26 @@ export async function chargeUpsell(params: {
   return post("/upsell/charge", params);
 }
 
+export async function resolveOrderByPi(piId: string): Promise<{ ok: boolean; order_id?: number }> {
+  return get(`/orders/resolve?pi_id=${encodeURIComponent(piId)}`);
+}
+
+export type OrderSummary = {
+  ok: boolean;
+  order_id: number;
+  order_number: string;
+  currency: string;
+  items: Array<{ name: string; qty: number; price: number; discount: number; total: number }>;
+  subtotal: number;
+  items_discount: number;
+  shipping_total: number;
+  fees_total: number;
+  points_redeemed?: number;
+  grand_total: number;
+};
+
+export async function getOrderSummary(orderId: number): Promise<OrderSummary> {
+  return get(`/orders/summary?order_id=${encodeURIComponent(String(orderId))}`);
+}
+
 
