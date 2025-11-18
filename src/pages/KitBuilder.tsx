@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { basicKitProducts, enhancementProducts, calculateKitPrice, getDiscountedPrice } from "@/data/products";
 import { saveKitSelection } from "@/data/wooMap";
-import magnesiumImg from "@/assets/magnesium.png?w=160;webp;as=src";
-import fastingElixirImg from "@/assets/fasting-elixir.png?w=160;webp;as=src";
-import serraxymImg from "@/assets/serraxym.png?w=160;webp;as=src";
-import illumodineImg from "@/assets/illumodine.png?w=160;webp;as=src";
-import ncdImg from "@/assets/ncd.png?w=160;webp;as=src";
-import radneutImg from "@/assets/radneut.png?w=160;webp;as=src";
+import magnesiumImg from "@/assets/magnesium.png";
+import fastingElixirImg from "@/assets/fasting-elixir.png";
+import serraxymImg from "@/assets/serraxym.png";
+import illumodineImg from "@/assets/illumodine.png";
+import ncdImg from "@/assets/ncd.png";
+import radneutImg from "@/assets/radneut.png";
 
 const productImages: Record<string, string> = {
   magnesium: magnesiumImg,
