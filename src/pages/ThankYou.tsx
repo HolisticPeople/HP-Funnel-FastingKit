@@ -4,41 +4,41 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Mail, User } from "lucide-react";
-import { loadKitSelection } from "@/data/wooMap";
-import { basicKitProducts, enhancementProducts, calculateKitPrice } from "@/data/products";
+import { getOrderSummary, resolveOrderByPi, type OrderSummary } from "@/api/bridge";
 
 export default function ThankYou() {
   const [params] = useSearchParams();
-  const orderId = params.get("order_id") || "pending";
-  const [orderItems, setOrderItems] = useState<any[]>([]);
-  const [pricing, setPricing] = useState<any>(null);
+  const orderIdParam = params.get("order_id");
+  const piIdParam = params.get("pi_id");
+  const [summary, setSummary] = useState<OrderSummary | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string>("pending");
 
   useEffect(() => {
-    const sel = loadKitSelection();
-    const { extras = [], twoPerson = false } = sel;
-    const qty = twoPerson ? 2 : 1;
-    
-    const items = [
-      ...basicKitProducts.map(p => ({
-        name: p.name,
-        qty,
-        price: p.price,
-        discountedPrice: p.price * 0.9,
-      })),
-      ...extras.map(id => {
-        const product = enhancementProducts.find(p => p.id === id);
-        return product ? {
-          name: product.name,
-          qty,
-          price: product.price,
-          discountedPrice: product.price * 0.9,
-        } : null;
-      }).filter(Boolean),
-    ];
-    
-    setOrderItems(items);
-    setPricing(calculateKitPrice(extras, twoPerson));
-  }, []);
+    let cancelled = false;
+    async function load() {
+      // Determine order id (direct param or resolve by pi)
+      let oid = orderIdParam ? parseInt(orderIdParam, 10) : 0;
+      if (!oid && piIdParam) {
+        for (let i = 0; i < 30 && !cancelled; i++) {
+          try {
+            const r = await resolveOrderByPi(piIdParam);
+            if (r && r.ok && r.order_id) { oid = r.order_id; break; }
+          } catch {}
+          await new Promise(res => setTimeout(res, 1000));
+        }
+      }
+      if (!oid || cancelled) return;
+      try {
+        const s = await getOrderSummary(oid);
+        if (!cancelled && s && s.ok) {
+          setSummary(s);
+          setOrderNumber(s.order_number || String(s.order_id));
+        }
+      } catch {}
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [orderIdParam, piIdParam]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-secondary/20 to-accent/10 p-8">
@@ -54,7 +54,7 @@ export default function ThankYou() {
             Thank you for your purchase
           </p>
           <Badge variant="secondary" className="text-base px-4 py-2">
-            Order #{orderId}
+            Order #{orderNumber}
           </Badge>
         </div>
 
@@ -72,29 +72,45 @@ export default function ThankYou() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orderItems.map((item, idx) => (
+              {summary?.items?.map((item, idx) => (
                 <TableRow key={idx}>
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell className="text-center">{item.qty}</TableCell>
                   <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
                   <TableCell className="text-right text-green-600">
-                    -${((item.price - item.discountedPrice) * item.qty).toFixed(2)}
+                    -${(item.discount).toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right font-semibold">
-                    ${(item.discountedPrice * item.qty).toFixed(2)}
+                    ${(item.total).toFixed(2)}
                   </TableCell>
                 </TableRow>
               ))}
               <TableRow className="border-t-2">
                 <TableCell colSpan={4} className="text-right font-semibold">Subtotal:</TableCell>
-                <TableCell className="text-right font-bold">${pricing?.total.toFixed(2) || '0.00'}</TableCell>
+                <TableCell className="text-right font-bold">${summary?.subtotal.toFixed(2) || '0.00'}</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell colSpan={4} className="text-right text-green-600 font-semibold">Total Savings:</TableCell>
                 <TableCell className="text-right text-green-600 font-bold">
-                  -${pricing?.savings.toFixed(2) || '0.00'}
+                  -${summary?.items_discount.toFixed(2) || '0.00'}
                 </TableCell>
               </TableRow>
+              <TableRow>
+                <TableCell colSpan={4} className="text-right font-semibold">Shipping:</TableCell>
+                <TableCell className="text-right font-bold">${summary?.shipping_total.toFixed(2) || '0.00'}</TableCell>
+              </TableRow>
+              {typeof summary?.points_redeemed === 'number' && summary.points_redeemed > 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-right text-emerald-700 font-semibold">Points Redeemed:</TableCell>
+                  <TableCell className="text-right text-emerald-700 font-bold">{summary.points_redeemed} pts</TableCell>
+                </TableRow>
+              )}
+              {summary && Math.abs(summary.fees_total) > 0.001 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-right font-semibold">Fees / Adjustments:</TableCell>
+                  <TableCell className="text-right font-bold">${summary.fees_total.toFixed(2)}</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </Card>
