@@ -220,9 +220,6 @@ export default function KitBuilder() {
           >
             Continue to Checkout →
           </Button>
-          <p className="text-sm text-muted-foreground mt-4">
-            Secure checkout with your preferred WooCommerce payment method
-          </p>
         </div>
       </div>
     </div>
