@@ -148,11 +148,10 @@ export function buildHostedConfirmUrl(clientSecret: string, publishable?: string
 export async function getStatus(params: {
   funnel_id: string;
 }): Promise<{ ok: boolean; environment: string; mode: string; redirect_url?: string }> {
-  const url = new URL(`${FUNNEL_API_BASE}/status`);
-  if (params.funnel_id) {
-    url.searchParams.set("funnel_id", params.funnel_id);
-  }
-  return get(`${url.pathname}${url.search}`);
+  const qs = new URLSearchParams();
+  if (params.funnel_id) qs.set("funnel_id", params.funnel_id);
+  const suffix = qs.toString() ? `/status?${qs.toString()}` : `/status`;
+  return get(suffix);
 }
 
 export async function chargeUpsell(params: {
