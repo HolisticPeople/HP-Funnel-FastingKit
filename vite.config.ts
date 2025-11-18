@@ -1,7 +1,5 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
-// @ts-ignore - type provided at runtime after install
-import { imagetools } from "vite-imagetools";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
@@ -16,7 +14,7 @@ export default defineConfig(({ mode }) => {
       host: "::",
       port: 8080,
     },
-    plugins: [imagetools(), react(), mode === "development" && componentTagger()].filter(Boolean),
+    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

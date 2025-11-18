@@ -5,14 +5,17 @@ import { Card } from "@/components/ui/card";
 import { postPurchaseProducts, calculateOffFastKitPrice } from "@/data/products";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Sparkles } from "lucide-react";
-import magnesiumImg from "@/assets/magnesium.png";
-import fastingElixirImg from "@/assets/fasting-elixir.png";
-import serraxymImg from "@/assets/serraxym.png";
-import illumodineImg from "@/assets/illumodine.png";
-import ncdImg from "@/assets/ncd.png";
-import radneutImg from "@/assets/radneut.png";
-import digestxymImg from "@/assets/digestxym.png";
-import triphalaImg from "@/assets/triphala.png";
+function assetUrl(file: string): string {
+  return new URL(`/img/thumbs/${file}`, (import.meta as any).env.BASE_URL || "/").toString();
+}
+const magnesiumImg = assetUrl("magnesium.webp");
+const fastingElixirImg = assetUrl("fasting-elixir.webp");
+const serraxymImg = assetUrl("serraxym.webp");
+const illumodineImg = assetUrl("illumodine.webp");
+const ncdImg = assetUrl("ncd.webp");
+const radneutImg = assetUrl("radneut.webp");
+const digestxymImg = assetUrl("digestxym.webp");
+const triphalaImg = assetUrl("triphala.webp");
 import { chargeUpsell, type BridgeItem } from "@/api/bridge";
 import { UPSELL_PRODUCTS } from "@/data/wooMap";
 import { FUNNEL_API_BASE } from "@/config";

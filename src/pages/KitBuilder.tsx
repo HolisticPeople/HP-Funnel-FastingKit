@@ -7,12 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { basicKitProducts, enhancementProducts, calculateKitPrice, getDiscountedPrice } from "@/data/products";
 import { saveKitSelection } from "@/data/wooMap";
-import magnesiumImg from "@/assets/magnesium.png";
-import fastingElixirImg from "@/assets/fasting-elixir.png";
-import serraxymImg from "@/assets/serraxym.png";
-import illumodineImg from "@/assets/illumodine.png";
-import ncdImg from "@/assets/ncd.png";
-import radneutImg from "@/assets/radneut.png";
+function assetUrl(file: string): string {
+  return new URL(`/img/thumbs/${file}`, (import.meta as any).env.BASE_URL || "/").toString();
+}
+const magnesiumImg = assetUrl("magnesium.webp");
+const fastingElixirImg = assetUrl("fasting-elixir.webp");
+const serraxymImg = assetUrl("serraxym.webp");
+const illumodineImg = assetUrl("illumodine.webp");
+const ncdImg = assetUrl("ncd.webp");
+const radneutImg = assetUrl("radneut.webp");
 
 const productImages: Record<string, string> = {
   magnesium: magnesiumImg,

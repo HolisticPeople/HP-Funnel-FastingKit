@@ -43,6 +43,9 @@ jobs:
       - name: Install deps
         run: npm ci
 
+      - name: Generate optimized thumbnails
+        run: npm run generate:thumbs
+
       - name: Build (staging)
         run: npm run build
 
