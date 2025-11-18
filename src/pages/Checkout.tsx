@@ -276,7 +276,7 @@ export default function Checkout() {
                     variant="outline"
                     role="combobox"
                     aria-expanded="false"
-                    className={cn("justify-between", countryError ? "border-red-500" : "")}
+                    className={cn("justify-between hover:bg-muted/50", countryError ? "border-red-500" : "")}
                   >
                     {countryNameFor(address.country) || "Select country"}
                     <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
@@ -341,7 +341,7 @@ export default function Checkout() {
             <h2 className="text-xl font-semibold">Shipping Options</h2>
             <div className="flex items-center gap-3">
               {ratesStale && <span className="text-amber-700 text-sm">Address changed — update rates</span>}
-              <Button variant="secondary" onClick={() => loadRates()} disabled={loadingRates} className={loadingRates ? "animate-pulse" : ""}>
+              <Button variant="outline" onClick={() => loadRates()} disabled={loadingRates} className={loadingRates ? "animate-pulse" : ""}>
                 {loadingRates ? (<><span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />Getting rates…</>) : (rates.length > 0 ? "Update Shipping Rates" : "Get Shipping Rates")}
               </Button>
             </div>
