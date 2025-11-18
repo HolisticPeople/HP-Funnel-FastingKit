@@ -95,7 +95,6 @@ export default function ThankYou() {
                 <TableHead>Product</TableHead>
                 <TableHead className="text-center">Qty</TableHead>
                 <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right">Discount</TableHead>
                 <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
@@ -123,32 +122,49 @@ export default function ThankYou() {
                   </TableCell>
                 </TableRow>
               )})}
-              <TableRow className="border-t-2">
-                <TableCell colSpan={4} className="text-right font-semibold">Subtotal:</TableCell>
-                <TableCell className="text-right font-bold">${summary?.subtotal.toFixed(2) || '0.00'}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell colSpan={4} className="text-right text-green-600 font-semibold">Total Savings:</TableCell>
-                <TableCell className="text-right text-green-600 font-bold">
-                  -${summary?.items_discount.toFixed(2) || '0.00'}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell colSpan={4} className="text-right font-semibold">Shipping:</TableCell>
-                <TableCell className="text-right font-bold">${summary?.shipping_total.toFixed(2) || '0.00'}</TableCell>
-              </TableRow>
-              {typeof summary?.points_redeemed === 'number' && summary.points_redeemed > 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-right text-emerald-700 font-semibold">Points Redeemed:</TableCell>
-                  <TableCell className="text-right text-emerald-700 font-bold">{summary.points_redeemed} pts</TableCell>
-                </TableRow>
-              )}
-              {summary && Math.abs(summary.fees_total) > 0.001 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-right font-semibold">Fees / Adjustments:</TableCell>
-                  <TableCell className="text-right font-bold">${summary.fees_total.toFixed(2)}</TableCell>
-                </TableRow>
-              )}
+              {(() => {
+                if (!summary) return null;
+                const rows = summary.items.map((it) => {
+                  const msrp0 = (it.sku && skuPriceMap[it.sku]) ? skuPriceMap[it.sku] : it.price;
+                  const rate  = isUpsellSku(it.sku) ? UPSELL_DISCOUNT : KIT_DISCOUNT;
+                  const unitA = msrp0 * (1 - rate);
+                  return {
+                    savings: (msrp0 - unitA) * it.qty,
+                    after: unitA * it.qty,
+                  };
+                });
+                const displaySubtotal = rows.reduce((a, r) => a + r.after, 0);
+                const displaySavings  = rows.reduce((a, r) => a + r.savings, 0);
+                const shipping = summary.shipping_total || 0;
+                const pointsDollars = (summary.points_redeemed || 0) / 10;
+                const displayTotal = displaySubtotal + shipping - pointsDollars;
+                return (
+                  <>
+                    <TableRow className="border-t-2">
+                      <TableCell colSpan={3} className="text-right font-semibold">Subtotal:</TableCell>
+                      <TableCell className="text-right font-bold">${displaySubtotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right text-green-600 font-semibold">Total Savings:</TableCell>
+                      <TableCell className="text-right text-green-600 font-bold">-${displaySavings.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right font-semibold">Shipping:</TableCell>
+                      <TableCell className="text-right font-bold">${shipping.toFixed(2)}</TableCell>
+                    </TableRow>
+                    {summary.points_redeemed ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-right text-emerald-700 font-semibold">Points Redeemed:</TableCell>
+                        <TableCell className="text-right text-emerald-700 font-bold">{summary.points_redeemed} pts (${pointsDollars.toFixed(2)})</TableCell>
+                      </TableRow>
+                    ) : null}
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right font-semibold">Order Total:</TableCell>
+                      <TableCell className="text-right font-bold">${displayTotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                  </>
+                );
+              })()}
             </TableBody>
           </Table>
         </Card>
