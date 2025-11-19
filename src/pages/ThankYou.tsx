@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Mail, User } from "lucide-react";
 import { getOrderSummary, resolveOrderByPi, type OrderSummary } from "@/api/bridge";
-import { KIT_DISCOUNT, UPSELL_DISCOUNT, basicKitProducts, enhancementProducts, postPurchaseProducts } from "@/data/products";
-import { KIT_BASE, ENHANCEMENTS, UPSELL_PRODUCTS } from "@/data/wooMap";
+import { KIT_DISCOUNT, UPSELL_DISCOUNT } from "@/data/products";
+import { UPSELL_PRODUCTS } from "@/data/wooMap";
+import { usePrices } from "@/context/PricesContext";
 
 export default function ThankYou() {
+  const { prices } = usePrices();
   const [params] = useSearchParams();
   const orderIdParam = params.get("order_id");
   const piIdParam = params.get("pi_id");
@@ -42,26 +44,10 @@ export default function ThankYou() {
     return () => { cancelled = true; };
   }, [orderIdParam, piIdParam]);
 
-  // Build SKU->original price map from product catalogs
-  const skuPriceMap: Record<string, number> = (() => {
-    const map: Record<string, number> = {};
-    // base kit
-    KIT_BASE.forEach((k) => {
-      const prod = basicKitProducts.find(p => p.id === k.key);
-      if (prod && k.sku) map[k.sku] = prod.price;
-    });
-    // enhancements (10% group)
-    Object.entries(ENHANCEMENTS).forEach(([key, def]) => {
-      const prod = enhancementProducts.find(p => p.id === key);
-      if (prod && def.sku) map[def.sku] = prod.price;
-    });
-    // upsell (15% group)
-    Object.entries(UPSELL_PRODUCTS).forEach(([key, def]) => {
-      const prod = postPurchaseProducts.find(p => p.id === key);
-      if (prod && def.sku) map[def.sku] = prod.price;
-    });
-    return map;
-  })();
+  // Build SKU->original price map from fetched MSRP
+  const skuPriceMap: Record<string, number> = useMemo(() => {
+    return { ...(prices || {}) };
+  }, [prices]);
 
   const isUpsellSku = (sku?: string) => {
     if (!sku) return false;
@@ -101,7 +87,7 @@ export default function ThankYou() {
             <TableBody>
               {summary?.items?.map((item, idx) => {
                 // Determine original and discounted unit prices
-                const msrp = (item.sku && skuPriceMap[item.sku]) ? skuPriceMap[item.sku] : item.price;
+                const msrp = (item.sku && skuPriceMap[item.sku] != null) ? skuPriceMap[item.sku] : item.price;
                 const discountRate = isUpsellSku(item.sku) ? UPSELL_DISCOUNT : KIT_DISCOUNT;
                 const unitAfter = +(msrp * (1 - discountRate));
                 return (
@@ -125,16 +111,14 @@ export default function ThankYou() {
               {(() => {
                 if (!summary) return null;
                 const rows = summary.items.map((it) => {
-                  const msrp0 = (it.sku && skuPriceMap[it.sku]) ? skuPriceMap[it.sku] : it.price;
+                  const msrp0 = (it.sku && skuPriceMap[it.sku] != null) ? skuPriceMap[it.sku] : it.price;
                   const rate  = isUpsellSku(it.sku) ? UPSELL_DISCOUNT : KIT_DISCOUNT;
                   const unitA = msrp0 * (1 - rate);
                   return {
-                    savings: (msrp0 - unitA) * it.qty,
                     after: unitA * it.qty,
                   };
                 });
                 const displaySubtotal = rows.reduce((a, r) => a + r.after, 0);
-                const displaySavings  = rows.reduce((a, r) => a + r.savings, 0);
                 const shipping = summary.shipping_total || 0;
                 const pointsDollars = (summary.points_redeemed || 0) / 10;
                 const displayTotal = displaySubtotal + shipping - pointsDollars;
@@ -143,10 +127,6 @@ export default function ThankYou() {
                     <TableRow className="border-t-2">
                       <TableCell colSpan={3} className="text-right font-semibold">Subtotal:</TableCell>
                       <TableCell className="text-right font-bold">${displaySubtotal.toFixed(2)}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-right text-green-600 font-semibold">Total Savings:</TableCell>
-                      <TableCell className="text-right text-green-600 font-bold">-${displaySavings.toFixed(2)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell colSpan={3} className="text-right font-semibold">Shipping:</TableCell>
@@ -210,5 +190,3 @@ export default function ThankYou() {
     </div>
   );
 }
-
-

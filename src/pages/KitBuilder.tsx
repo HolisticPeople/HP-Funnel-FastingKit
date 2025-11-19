@@ -5,8 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { basicKitProducts, enhancementProducts, calculateKitPrice, getDiscountedPrice } from "@/data/products";
-import { saveKitSelection } from "@/data/wooMap";
+import { basicKitProducts, enhancementProducts, KIT_DISCOUNT } from "@/data/products";
+import { saveKitSelection, KIT_BASE, ENHANCEMENTS } from "@/data/wooMap";
+import { usePrices } from "@/context/PricesContext";
 function assetUrl(file: string): string {
   const base = ((import.meta as any).env?.BASE_URL || "/") as string;
   const normalized = base.endsWith("/") ? base : `${base}/`;
@@ -29,6 +30,7 @@ const productImages: Record<string, string> = {
 };
 
 export default function KitBuilder() {
+  const { prices } = usePrices();
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [twoPerson, setTwoPerson] = useState(false);
   const navigate = useNavigate();
@@ -39,8 +41,26 @@ export default function KitBuilder() {
     );
   };
 
-  const pricing = calculateKitPrice(selectedExtras, twoPerson);
-  const basicKitPricing = calculateKitPrice([], false);
+  // Compute totals from WC MSRP fetched once
+  const baseMsrp = basicKitProducts.reduce((sum, p, idx) => {
+    const sku = (KIT_BASE[idx] as any)?.sku as string | undefined;
+    const msrp = sku && prices[sku] != null ? prices[sku] : p.price;
+    return sum + msrp * (twoPerson ? 2 : 1);
+  }, 0);
+  const extrasMsrp = selectedExtras.reduce((sum, id) => {
+    const prod = enhancementProducts.find((e) => e.id === id);
+    const sku = (ENHANCEMENTS as any)[id]?.sku as string | undefined;
+    const msrp = sku && prices[sku] != null ? prices[sku] : (prod?.price ?? 0);
+    return sum + msrp * (twoPerson ? 2 : 1);
+  }, 0);
+  const originalTotal = baseMsrp + extrasMsrp;
+  const discountedTotal = originalTotal * (1 - KIT_DISCOUNT);
+  const pricing = { total: discountedTotal, originalTotal, savings: originalTotal - discountedTotal };
+  const basicKitPricing = (() => {
+    const orig = baseMsrp / (twoPerson ? 2 : 1); // base kit price for single set
+    const disc = orig * (1 - KIT_DISCOUNT);
+    return { total: disc, originalTotal: orig, savings: orig - disc };
+  })();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-secondary/20 to-accent/10">
@@ -75,7 +95,11 @@ export default function KitBuilder() {
             </div>
           </div>
           <div className="space-y-4 text-foreground">
-            {basicKitProducts.map((product) => (
+            {basicKitProducts.map((product, idx) => {
+              const sku = (KIT_BASE[idx] as any)?.sku as string | undefined;
+              const msrp = sku && prices[sku] != null ? prices[sku] : product.price;
+              const after = msrp * (1 - KIT_DISCOUNT);
+              return (
               <div key={product.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50">
                 {product.image && (
                   <img
@@ -99,16 +123,16 @@ export default function KitBuilder() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className="text-xs text-muted-foreground line-through">
-                        ${product.price.toFixed(2)}
+                        ${msrp.toFixed(2)}
                       </div>
                       <p className="text-sm font-semibold text-accent">
-                        ${getDiscountedPrice(product.price).toFixed(2)}
+                        ${after.toFixed(2)}
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </Card>
 
@@ -117,7 +141,11 @@ export default function KitBuilder() {
             Enhance Your Experience
           </h2>
           <div className="space-y-4">
-            {enhancementProducts.map((product) => (
+            {enhancementProducts.map((product) => {
+              const sku = (ENHANCEMENTS as any)[product.id]?.sku as string | undefined;
+              const msrp = sku && prices[sku] != null ? prices[sku] : product.price;
+              const after = msrp * (1 - KIT_DISCOUNT);
+              return (
               <div
                 key={product.id}
                 className="flex items-center space-x-3 p-4 rounded-lg hover:bg-muted/50 transition-all border border-border/50 hover:border-primary/30"
@@ -154,17 +182,17 @@ export default function KitBuilder() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <div className="text-xs text-muted-foreground line-through">
-                          ${product.price.toFixed(2)}
+                          ${msrp.toFixed(2)}
                         </div>
                         <p className="text-sm font-semibold text-accent">
-                          ${getDiscountedPrice(product.price).toFixed(2)}
+                          ${after.toFixed(2)}
                         </p>
                       </div>
                     </div>
                   </Label>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </Card>
 

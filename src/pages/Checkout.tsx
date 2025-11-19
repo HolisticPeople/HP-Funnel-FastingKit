@@ -44,21 +44,24 @@ export default function Checkout() {
   const [ratesSig, setRatesSig] = useState<string | null>(null);
   const [ratesError, setRatesError] = useState<string | null>(null);
   const calcSeqRef = useRef(0);
+
   const allowedMax = useMemo(() => {
     const subtotal = Number(totals?.subtotal || 0);
     const discount = Number(totals?.discount_total || 0);
-    const netProducts = Math.max(0, subtotal - discount);
+    const globalDisc = Number(totals?.global_discount || 0);
+    const netProducts = Math.max(0, subtotal - discount - globalDisc);
     const bySubtotal = Math.max(0, Math.floor(netProducts * 10)); // 10 pts == $1
     return Math.max(0, Math.min(pointsAvailable, bySubtotal));
-  }, [pointsAvailable, totals?.subtotal, totals?.discount_total]);
+  }, [pointsAvailable, totals?.subtotal, totals?.discount_total, totals?.global_discount]);
 
   // Helper to quickly derive a new grand total without waiting for server
   const deriveGrand = (base: any, nextShipping?: number, nextPointsDiscount?: number) => {
     if (!base) return 0;
     const subtotal = Number(base.subtotal || 0);
+    const globalDisc = Number(base.global_discount || 0);
     const shipping = typeof nextShipping === "number" ? nextShipping : Number(base.shipping_total || 0);
     const pts = typeof nextPointsDiscount === "number" ? nextPointsDiscount : Number(base.points_discount || 0);
-    const g = subtotal + shipping - pts;
+    const g = (subtotal - globalDisc) + shipping - pts;
     return Math.max(0, Number.isFinite(g) ? g : 0);
   };
 
@@ -183,8 +186,7 @@ export default function Checkout() {
           points_to_redeem: pointsToRedeem,
         }).then((tot) => {
           if (seq === calcSeqRef.current) {
-            const fixed = { ...tot, grand_total: deriveGrand(tot) };
-            setTotals(fixed);
+            setTotals(tot);
             setRecalcPending(false);
           }
         }).catch(() => setRecalcPending(false));
@@ -361,12 +363,8 @@ export default function Checkout() {
               const amt = parseFloat(amount);
               setSelectedRate({ serviceName, amount: amt });
               setRateValue(v);
-              // Optimistic local update
-              if (totals) {
-                const updated = { ...totals, shipping_total: amt };
-                updated.grand_total = deriveGrand(totals, amt, undefined);
-                setTotals(updated);
-              }
+              // Optimistic local update (shipping only); UI will revalidate from server
+              if (totals) setTotals({ ...totals, shipping_total: amt });
               // Server revalidation (no blocking UI)
               setRecalcPending(true);
               calcSeqRef.current += 1;
@@ -381,8 +379,7 @@ export default function Checkout() {
                 points_to_redeem: pointsToRedeem,
               }).then((tot) => {
                 if (seq === calcSeqRef.current) {
-                  const fixed = { ...tot, grand_total: deriveGrand(tot) };
-                  setTotals(fixed);
+                  setTotals(tot);
                   setRecalcPending(false);
                 }
               }).catch(() => setRecalcPending(false));
@@ -413,13 +410,8 @@ export default function Checkout() {
                 onValueCommit={async (val) => {
                   const pts = Math.min(Math.max(val[0] || 0, 0), allowedMax);
                   setPointsToRedeem(pts);
-                  // Optimistic local update
-                  if (totals) {
-                    const dollars = (pts / 10);
-                    const updated = { ...totals, points_discount: dollars };
-                    updated.grand_total = deriveGrand(totals, undefined, dollars);
-                    setTotals(updated);
-                  }
+                  // Optimistic local update; UI will revalidate from server
+                  if (totals) setTotals({ ...totals, points_discount: (pts / 10) });
                   // Server revalidation
                   setRecalcPending(true);
                   calcSeqRef.current += 1;
@@ -434,8 +426,7 @@ export default function Checkout() {
                     points_to_redeem: pts,
                   }).then((tot) => {
                     if (seq === calcSeqRef.current) {
-                      const fixed = { ...tot, grand_total: deriveGrand(tot) };
-                      setTotals(fixed);
+                      setTotals(tot);
                       setRecalcPending(false);
                     }
                   }).catch(() => setRecalcPending(false));
@@ -455,7 +446,7 @@ export default function Checkout() {
         {totals && (
           <Card className="p-6 grid gap-2">
             <h2 className="text-xl font-semibold">Summary</h2>
-            <div className="flex justify-between"><span>Subtotal</span><span>${totals.subtotal.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span>Subtotal</span><span>${Number(totals.discounted_subtotal || (Number(totals.subtotal || 0) - Number(totals?.global_discount || 0))).toFixed(2)}</span></div>
             <div className="flex justify-between"><span>Shipping</span><span>${totals.shipping_total.toFixed(2)}</span></div>
             {totals.points_discount > 0 && (
               <div className="flex justify-between text-emerald-700">
@@ -463,7 +454,7 @@ export default function Checkout() {
                 <span>- ${Number(totals.points_discount).toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between font-bold"><span>Total</span><span>${totals.grand_total.toFixed(2)}</span></div>
+            <div className="flex justify-between font-bold"><span>Total</span><span>${Number(totals.grand_total || 0).toFixed(2)}</span></div>
           </Card>
         )}
 

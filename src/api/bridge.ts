@@ -100,6 +100,8 @@ export async function getTotals(params: {
 }): Promise<{
   subtotal: number;
   discount_total: number;
+  global_discount: number;
+  discounted_subtotal: number;
   shipping_total: number;
   tax_total: number;
   fees_total: number;
@@ -186,4 +188,9 @@ export async function getOrderSummary(orderId: number): Promise<OrderSummary> {
   return get(`/orders/summary?order_id=${encodeURIComponent(String(orderId))}`);
 }
 
-
+export async function getPricesForSkus(skus: string[]): Promise<Record<string, number>> {
+  if (!skus.length) return {};
+  const qs = new URLSearchParams({ skus: skus.join(',') });
+  const resp = await get<{ ok: boolean; prices: Record<string, number> }>(`/catalog/prices?${qs.toString()}`);
+  return resp && (resp as any).prices ? (resp as any).prices as Record<string, number> : {};
+}

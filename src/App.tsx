@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import Checkout from "./pages/Checkout";
 import PostPurchaseUpsell from "./pages/PostPurchaseUpsell";
 import ThankYou from "./pages/ThankYou";
+import { PricesProvider } from "@/context/PricesContext";
 
 const queryClient = new QueryClient();
 
@@ -34,17 +35,19 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter basename={(import.meta as any).env?.VITE_APP_BASEPATH || "/"}>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/kit-builder" element={<KitBuilder />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/upsell" element={<PostPurchaseUpsell />} />
-            <Route path="/thank-you" element={<ThankYou />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <PricesProvider>
+          <BrowserRouter basename={(import.meta as any).env?.VITE_APP_BASEPATH || "/"}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/kit-builder" element={<KitBuilder />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/upsell" element={<PostPurchaseUpsell />} />
+              <Route path="/thank-you" element={<ThankYou />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </PricesProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

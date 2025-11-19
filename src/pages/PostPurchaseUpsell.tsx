@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { postPurchaseProducts, calculateOffFastKitPrice } from "@/data/products";
+import { postPurchaseProducts, UPSELL_DISCOUNT } from "@/data/products";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Sparkles } from "lucide-react";
 function assetUrl(file: string): string {
@@ -21,6 +21,7 @@ const triphalaImg = assetUrl("triphala.webp");
 import { chargeUpsell, type BridgeItem } from "@/api/bridge";
 import { UPSELL_PRODUCTS } from "@/data/wooMap";
 import { FUNNEL_API_BASE } from "@/config";
+import { usePrices } from "@/context/PricesContext";
 
 const productImages: Record<string, string> = {
   magnesium: magnesiumImg,
@@ -34,12 +35,24 @@ const productImages: Record<string, string> = {
 };
 
 export default function PostPurchaseUpsell() {
+  const { prices } = usePrices();
   const [params] = useSearchParams();
   const [orderId, setOrderId] = useState<number>(Number(params.get("order_id") || 0));
   const piId = params.get("pi_id") || "";
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
-  const { total, originalTotal, savings } = calculateOffFastKitPrice();
+
+  // Compute totals from MSRP map
+  const { total, originalTotal, savings } = useMemo(() => {
+    const msrps = postPurchaseProducts.map(p => {
+      const sku = (UPSELL_PRODUCTS as any)[p.id]?.sku as string | undefined;
+      const msrp = sku && prices[sku] != null ? prices[sku] : p.price;
+      return msrp;
+    });
+    const orig = msrps.reduce((a, b) => a + b, 0);
+    const tot = msrps.reduce((a, b) => a + b * (1 - UPSELL_DISCOUNT), 0);
+    return { total: tot, originalTotal: orig, savings: orig - tot };
+  }, [prices]);
 
   // Fallback: resolve order_id by payment intent id if needed (in case webhook is slightly delayed)
   useEffect(() => {
@@ -144,7 +157,11 @@ export default function PostPurchaseUpsell() {
           </h2>
 
           <div className="space-y-4 mb-8">
-            {postPurchaseProducts.map((product) => (
+            {postPurchaseProducts.map((product) => {
+              const sku = (UPSELL_PRODUCTS as any)[product.id]?.sku as string | undefined;
+              const msrp = sku && prices[sku] != null ? prices[sku] : product.price;
+              const after = msrp * (1 - UPSELL_DISCOUNT);
+              return (
               <div
                 key={product.id}
                 className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50 hover:border-primary/30 transition-all"
@@ -172,14 +189,14 @@ export default function PostPurchaseUpsell() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-muted-foreground line-through">
-                    ${product.price.toFixed(2)}
+                    ${msrp.toFixed(2)}
                   </div>
                   <div className="font-semibold text-accent">
-                    ${(product.price * 0.85).toFixed(2)}
+                    ${after.toFixed(2)}
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
 
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
