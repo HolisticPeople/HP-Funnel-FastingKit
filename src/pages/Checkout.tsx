@@ -44,21 +44,24 @@ export default function Checkout() {
   const [ratesSig, setRatesSig] = useState<string | null>(null);
   const [ratesError, setRatesError] = useState<string | null>(null);
   const calcSeqRef = useRef(0);
+
   const allowedMax = useMemo(() => {
     const subtotal = Number(totals?.subtotal || 0);
     const discount = Number(totals?.discount_total || 0);
-    const netProducts = Math.max(0, subtotal - discount);
+    const globalDisc = Number(totals?.global_discount || 0);
+    const netProducts = Math.max(0, subtotal - discount - globalDisc);
     const bySubtotal = Math.max(0, Math.floor(netProducts * 10)); // 10 pts == $1
     return Math.max(0, Math.min(pointsAvailable, bySubtotal));
-  }, [pointsAvailable, totals?.subtotal, totals?.discount_total]);
+  }, [pointsAvailable, totals?.subtotal, totals?.discount_total, totals?.global_discount]);
 
   // Helper to quickly derive a new grand total without waiting for server
   const deriveGrand = (base: any, nextShipping?: number, nextPointsDiscount?: number) => {
     if (!base) return 0;
     const subtotal = Number(base.subtotal || 0);
+    const globalDisc = Number(base.global_discount || 0);
     const shipping = typeof nextShipping === "number" ? nextShipping : Number(base.shipping_total || 0);
     const pts = typeof nextPointsDiscount === "number" ? nextPointsDiscount : Number(base.points_discount || 0);
-    const g = subtotal + shipping - pts;
+    const g = (subtotal - globalDisc) + shipping - pts;
     return Math.max(0, Number.isFinite(g) ? g : 0);
   };
 
@@ -455,7 +458,7 @@ export default function Checkout() {
         {totals && (
           <Card className="p-6 grid gap-2">
             <h2 className="text-xl font-semibold">Summary</h2>
-            <div className="flex justify-between"><span>Subtotal</span><span>${totals.subtotal.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span>Subtotal</span><span>${Math.max(0, Number(totals.subtotal || 0) - Number(totals?.global_discount || 0)).toFixed(2)}</span></div>
             <div className="flex justify-between"><span>Shipping</span><span>${totals.shipping_total.toFixed(2)}</span></div>
             {totals.points_discount > 0 && (
               <div className="flex justify-between text-emerald-700">
