@@ -101,6 +101,7 @@ export async function getTotals(params: {
   subtotal: number;
   discount_total: number;
   global_discount: number;
+  discounted_subtotal: number;
   shipping_total: number;
   tax_total: number;
   fees_total: number;
